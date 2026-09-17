@@ -2,8 +2,14 @@ load("@gazelle//:def.bzl", "gazelle")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 # gazelle:prefix github.com/regalium-os/osdp-go
-# gazelle:exclude protobuf/generated
 # gazelle:exclude flatbuffers/generated
+
+# The whole protobuf tree, not merely its generated output: buf owns the schema
+# module, and gazelle left to itself writes proto_library rules against
+# @com_google_protobuf, which is not a bazel_dep here. Those rules break
+# `bazel test //...` on the next `just tidy`, so the tree stays out of gazelle's
+# reach until the schema module is genuinely part of the Bazel build.
+# gazelle:exclude protobuf
 gazelle(name = "gazelle")
 
 # The source tree the conformance tests inspect. They read files rather than the
@@ -52,6 +58,7 @@ go_library(
 go_test(
     name = "osdp-go_test",
     srcs = [
+        "capabilities_test.go",
         "e2e_test.go",
         "osdp_test.go",
     ],

@@ -84,6 +84,24 @@ between an HID reader, a Gallagher reader and a Salto lock are confined to
 belongs in `frame` as a quirk flag with a fixture proving it — vendor forks of
 the wire format are how OSDP stacks rot.
 
+Capability negotiation keeps what the device claimed separate from what the
+panel ended up believing, because when a reader misbehaves in the field the
+first question is which of the two was wrong:
+
+```go
+report, _ := osdp.ParseCapabilities(reply.Data) // the osdp_PDCAP reply, as sent
+claimed := osdp.DeviceCapabilities(report)      // interpreted, still trusting
+believed := registry.For(id).Reconcile(id, claimed)
+
+if osdp.UsesDefaultKey(report) {
+    // AES-128 capable, still on SCBK-D: installable, not yet confidential.
+}
+```
+
+A report survives interpretation: unknown function codes are kept, re-encode
+byte for byte, and stay readable through `report.Get` for an integrator holding
+vendor documentation this library does not have.
+
 ### Secure Channel
 
 The AES-128 suite mandated by the specification is **required** and always
@@ -207,13 +225,13 @@ flowchart LR
     g1{"framing fixtures<br/>byte-exact"}
     p2["<b>Phase 2</b><br/>Secure Channel<br/>AES-128 suite"]
     g2{"Secure Channel fixtures<br/>byte-exact"}
-    p3["<b>Phase 3</b><br/>providers<br/>HID · Gallagher · Salto"]
+    p3["<b>Phase 3</b><br/>providers<br/>capability negotiation"]
     g3{"per-vendor MFG + CAP<br/>fixtures pass"}
 
     p0 --> g0 --> p1 --> g1 --> p2 --> g2 --> p3 --> g3
 
     classDef done fill:#dcfce7,stroke:#15803d,color:#14532d
-    class p0,g0,p1,g1,p2,g2,p3 done
+    class p0,g0,p1,g1,p2,g2,p3,g3 done
 ```
 
 ## Using it

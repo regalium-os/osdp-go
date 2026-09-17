@@ -3,6 +3,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "provider",
     srcs = [
+        "capabilities.go",
         "doc.go",
         "generic.go",
         "provider.go",
@@ -24,9 +25,16 @@ filegroup(
 
 go_test(
     name = "provider_test",
-    srcs = ["provider_test.go"],
+    srcs = [
+        "corpus_test.go",
+        "fixture_test.go",
+        "mfg_fixture_test.go",
+        "provider_test.go",
+    ],
+    data = glob(["testdata/**"]),
     deps = [
         ":provider",
         "//internal/cmd",
+        "//internal/frame",
     ],
 )

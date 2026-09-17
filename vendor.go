@@ -3,6 +3,7 @@ package osdp
 import (
 	"context"
 
+	"github.com/regalium-os/osdp-go/internal/cmd"
 	"github.com/regalium-os/osdp-go/internal/driver"
 	"github.com/regalium-os/osdp-go/internal/provider"
 	"github.com/regalium-os/osdp-go/internal/transport"
@@ -56,6 +57,69 @@ const (
 // because it silently routes a device to the wrong quirk set. Build those
 // providers with the OUI read from the device's own osdp_PDID reply.
 const OUIHID = provider.OUIHID
+
+// Capability negotiation types.
+//
+// Capabilities and CapabilityReport are deliberately different things and the
+// names are worth reading twice. A CapabilityReport is the osdp_PDCAP reply as
+// the device sent it, entry by entry, unknown function codes included.
+// Capabilities is the interpreted view a panel acts on. Going from the first to
+// the second loses what this library does not understand, which is why both are
+// public: an integrator with vendor documentation can read an entry that
+// DeviceCapabilities ignores.
+type (
+	// CapabilityReport is the decoded osdp_PDCAP payload: everything a device
+	// says it can do, in the order it said it.
+	CapabilityReport = cmd.CapabilityReport
+
+	// Capability is one entry of a report: a function code and the two
+	// function-specific octets that qualify it.
+	Capability = cmd.Capability
+
+	// CapabilityFunction is an osdp_PDCAP function code, SIA OSDP v2.2.2 §6.6.
+	CapabilityFunction = cmd.Function
+)
+
+// Capability function codes, SIA OSDP v2.2.2 §6.6.
+const (
+	CapContactStatus   = cmd.FuncContactStatus
+	CapOutputControl   = cmd.FuncOutputControl
+	CapCardDataFormat  = cmd.FuncCardDataFormat
+	CapReaderLED       = cmd.FuncReaderLED
+	CapReaderAudible   = cmd.FuncReaderAudible
+	CapReaderText      = cmd.FuncReaderText
+	CapTimeKeeping     = cmd.FuncTimeKeeping
+	CapCheckCharacter  = cmd.FuncCheckCharacter
+	CapCommSecurity    = cmd.FuncCommSecurity
+	CapReceiveBuffer   = cmd.FuncReceiveBuffer
+	CapCombinedMessage = cmd.FuncCombinedMessage
+	CapSmartCard       = cmd.FuncSmartCard
+	CapReaders         = cmd.FuncReaders
+	CapBiometrics      = cmd.FuncBiometrics
+	CapSecurePINEntry  = cmd.FuncSecurePINEntry
+	CapOSDPVersion     = cmd.FuncOSDPVersion
+)
+
+// ParseCapabilities decodes an osdp_PDCAP payload. The entries are copied, so
+// the report outlives the read buffer it came from.
+func ParseCapabilities(data []byte) (CapabilityReport, error) {
+	return cmd.ParseCapabilities(data)
+}
+
+// DeviceCapabilities derives the capability set a device claims, with no vendor
+// knowledge applied. Pass the result through the device's Provider.Reconcile to
+// get what the panel should actually believe; keeping the two apart is what
+// makes it answerable, later, whether a reader lied or whether we corrected it.
+func DeviceCapabilities(r CapabilityReport) Capabilities {
+	return provider.FromReport(r)
+}
+
+// UsesDefaultKey reports whether a device says it is still holding SCBK-D, the
+// default Secure Channel key published in the specification. A bus of devices
+// on the default key has no confidentiality at all, and a panel should say so.
+func UsesDefaultKey(r CapabilityReport) bool {
+	return provider.UsesDefaultKey(r)
+}
 
 // NewProviderRegistry returns a registry holding the supplied providers plus
 // the generic fallback. A later provider with the same OUI replaces an earlier

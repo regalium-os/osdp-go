@@ -1,0 +1,180 @@
+# OSDP provider fixture corpus -- Phase 3 (capability negotiation and osdp_MFG).
+#
+# Vectors are spec-derived, not captured from hardware: frames are constructed
+# per SIA OSDP v2.2.2 sec.5, their capability entries per sec.6.6, and their
+# error checks computed by a bitwise CRC-16/AUG-CCITT reference written from the
+# polynomial. That reference is checked against the Phase 1 corpus before it is
+# trusted to produce this one.
+#
+# No record claims to be traffic from a named vendor's hardware. The two
+# records mentioning HID use the one OUI this library relies on (00:06:8E) with
+# a body of our own choosing; a wrong OUI silently routes a device to the wrong
+# quirk set, so an unverified one is worse than none. See vendor.go.
+#
+# Format: '@name' opens a record, '!' is its description, ':key value' lines are
+# the expectations the record asserts, and hex octets follow. Expectations are
+# checked AFTER Provider.Reconcile, so a 'quirked' record states what the panel
+# ends up believing, not what the device claimed.
+#
+# Records named bad-* carry a payload the codec must reject rather than guess at.
+
+@cap-wall-reader
+!osdp_PDCAP from a single-reader wall reader: the commonest device on any bus
+:vendor generic
+:readers 1
+:leds 2
+:buzzers 1
+:displays 0
+:inputs 4
+:outputs 4
+:secure true
+:defaultkey false
+:maxmessage 128
+53 80 26 00 05 46 01 01 04 02 01 04 03 01 00 04 01 02 05 01 01 06 00 00 08 01
+00 09 01 00 0A 80 00 0D 01 01 3A 50
+
+@cap-two-reader-controller
+!a two-reader door controller: per-reader counts stay per reader, never multiplied
+:vendor hid
+:readers 2
+:leds 4
+:buzzers 1
+:displays 2
+:inputs 8
+:outputs 8
+:secure true
+:defaultkey false
+:maxmessage 1024
+53 82 26 00 06 46 01 02 08 02 01 08 03 01 00 04 02 04 05 01 01 06 02 02 08 01
+00 09 01 00 0A 00 04 0D 01 02 C0 C7
+
+@cap-secure-channel-absent
+!osdp_CAP_COMMUNICATION_SECURITY reported at compliance 0: the device says no
+:vendor generic
+:readers 1
+:leds 1
+:buzzers 0
+:displays 0
+:inputs 2
+:outputs 2
+:secure false
+:defaultkey false
+:maxmessage 128
+53 83 1D 00 07 46 01 01 02 02 01 02 04 01 01 08 01 00 09 00 00 0A 80 00 0D 01
+01 CD 2F
+
+@cap-default-key-in-use
+!AES-128 capable but still holding SCBK-D; installable, not yet confidential
+:vendor generic
+:readers 1
+:leds 1
+:buzzers 1
+:displays 0
+:inputs 0
+:outputs 0
+:secure true
+:defaultkey true
+:maxmessage 256
+53 84 1A 00 05 46 04 01 01 05 01 01 08 01 00 09 01 01 0A 00 01 0D 01 01 E2 FD
+
+@cap-quirked-vendor
+!a device claiming AES-128 and a 1024-octet buffer, corrected by its vendor quirks
+:vendor quirked
+:readers 1
+:leds 2
+:buzzers 1
+:displays 0
+:inputs 4
+:outputs 4
+:secure false
+:defaultkey false
+:maxmessage 128
+53 85 20 00 06 46 01 01 04 02 01 04 04 01 02 05 01 01 08 01 00 09 01 00 0A 00
+04 0D 01 01 21 89
+
+@cap-unknown-function
+!functions 0x11 and 0x7F, which this library does not name; they must survive
+:vendor generic
+:readers 1
+:leds 1
+:buzzers 0
+:displays 0
+:inputs 0
+:outputs 0
+:secure true
+:defaultkey false
+:maxmessage 128
+53 86 1A 00 07 46 04 01 01 09 01 00 0A 80 00 0D 01 01 11 01 02 7F AA 55 D6 EB
+
+@cap-checksum-framed
+!a legacy device answering osdp_CAP inside a checksum frame rather than a CRC one
+:vendor generic
+:readers 1
+:leds 0
+:buzzers 0
+:displays 0
+:inputs 1
+:outputs 1
+:secure false
+:defaultkey false
+:maxmessage 0
+53 87 13 00 01 46 01 01 01 02 01 01 08 00 00 0D 01 01 AE
+
+@cap-empty
+!an osdp_PDCAP carrying no entries; legal, unhelpful, and not a parse error
+:vendor generic
+:readers 0
+:leds 0
+:buzzers 0
+:displays 0
+:inputs 0
+:outputs 0
+:secure false
+:defaultkey false
+:maxmessage 0
+53 88 08 00 06 46 D0 A8
+
+@bad-cap-truncated
+!an osdp_PDCAP cut mid-entry: 8 octets is not a whole number of triples
+:vendor generic
+:error short-payload
+53 89 10 00 07 46 01 01 04 02 01 04 04 01 82 14
+
+@mfg-hid-command
+!osdp_MFG to an HID reader: OUI 00:06:8E and a vendor-defined body
+:vendor hid
+:oui 00068E
+:recognised false
+:body 01DEADBEEF
+53 00 10 00 05 80 00 06 8E 01 DE AD BE EF D3 DB
+
+@mfg-unknown-vendor
+!a vendor with no provider registered; the body is carried, not discarded
+:vendor generic
+:oui ABCDEF
+:recognised false
+:body 7B226F6B223A317D
+53 01 13 00 06 80 AB CD EF 7B 22 6F 6B 22 3A 31 7D 23 BA
+
+@mfg-reply-passthrough
+!osdp_MFGREP: the same body in the other direction, from the device
+:vendor hid
+:oui 00068E
+:recognised false
+:body 020001
+53 80 0E 00 05 90 00 06 8E 02 00 01 21 EE
+
+@mfg-empty-body
+!an osdp_MFG that is nothing but an OUI; the shortest legal vendor message
+:vendor hid
+:oui 00068E
+:recognised false
+:body
+53 02 0B 00 07 80 00 06 8E E9 51
+
+@bad-mfg-short
+!two octets where three are needed; the OUI itself is incomplete
+:vendor generic
+:error short-payload
+53 03 0A 00 05 80 00 06 71 5B
+

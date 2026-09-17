@@ -1,8 +1,9 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "cmd",
     srcs = [
+        "capabilities.go",
         "codes.go",
         "doc.go",
         "errors.go",
@@ -24,4 +25,10 @@ filegroup(
     name = "sources",
     srcs = glob(["**/*.go"]),
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "cmd_test",
+    srcs = ["capabilities_test.go"],
+    deps = [":cmd"],
 )

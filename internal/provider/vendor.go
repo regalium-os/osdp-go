@@ -12,6 +12,10 @@ import (
 // Every quirk must be justified by a fixture showing the behaviour. A quirk
 // without one is a rumour, and rumours accumulate until nobody dares remove
 // them.
+//
+// The quirks below are exercised by the cap-quirked-vendor record in
+// testdata/vendor.hex, which shows a device claiming AES-128 and a 1024-octet
+// receive buffer and a panel believing neither.
 type Quirk uint16
 
 const (

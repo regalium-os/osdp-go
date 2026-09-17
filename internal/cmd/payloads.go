@@ -119,3 +119,14 @@ func ParseManufacturerMessage(data []byte) (ManufacturerMessage, error) {
 		Body: data[header:],
 	}, nil
 }
+
+// Append encodes the message onto dst and returns the extended slice: the OUI
+// most significant octet first, then the vendor-defined body verbatim.
+//
+// The body is copied into dst and not retained. A provider that round-trips a
+// message it did not recognise reproduces the original payload octet for octet,
+// which is what lets a panel forward a vendor message it cannot read.
+func (m ManufacturerMessage) Append(dst []byte) []byte {
+	dst = append(dst, byte(m.OUI>>16), byte(m.OUI>>8), byte(m.OUI))
+	return append(dst, m.Body...)
+}

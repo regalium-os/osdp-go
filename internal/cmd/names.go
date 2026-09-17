@@ -23,3 +23,26 @@ var replyNames = map[Code]string{
 	CCrypt: "osdp_CCRYPT", RMACI: "osdp_RMAC_I", MFGReply: "osdp_MFGREP",
 	Busy: "osdp_BUSY",
 }
+
+// Capability mnemonics, kept beside the function codes for the same reason: a
+// capability report printed during enrolment is read by a human deciding
+// whether the device on the bench is the one on the drawing.
+var functionNames = map[Function]string{
+	FuncContactStatus:  "osdp_CAP_CONTACT_STATUS_MONITORING",
+	FuncOutputControl:  "osdp_CAP_OUTPUT_CONTROL",
+	FuncCardDataFormat: "osdp_CAP_CARD_DATA_FORMAT",
+	FuncReaderLED:      "osdp_CAP_READER_LED_CONTROL",
+	FuncReaderAudible:  "osdp_CAP_READER_AUDIBLE_OUTPUT",
+	FuncReaderText:     "osdp_CAP_READER_TEXT_OUTPUT",
+	FuncTimeKeeping:    "osdp_CAP_TIME_KEEPING",
+	FuncCheckCharacter: "osdp_CAP_CHECK_CHARACTER_SUPPORT",
+	FuncCommSecurity:   "osdp_CAP_COMMUNICATION_SECURITY",
+	FuncReceiveBuffer:  "osdp_CAP_RECEIVE_BUFFERSIZE",
+
+	FuncCombinedMessage: "osdp_CAP_LARGEST_COMBINED_MESSAGE_SIZE",
+	FuncSmartCard:       "osdp_CAP_SMART_CARD_SUPPORT",
+	FuncReaders:         "osdp_CAP_READERS",
+	FuncBiometrics:      "osdp_CAP_BIOMETRICS",
+	FuncSecurePINEntry:  "osdp_CAP_SECURE_PIN_ENTRY",
+	FuncOSDPVersion:     "osdp_CAP_OSDP_VERSION",
+}
