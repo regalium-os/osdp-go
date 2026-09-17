@@ -16,6 +16,7 @@ go_library(
         "output.go",
         "payloads.go",
         "status.go",
+        "text.go",
     ],
     importpath = "github.com/regalium-os/osdp-go/internal/cmd",
     visibility = ["//:__subpackages__"],
@@ -38,6 +39,7 @@ go_test(
     srcs = [
         "capabilities_test.go",
         "commands_test.go",
+        "text_test.go",
     ],
     deps = [":cmd"],
 )

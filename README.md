@@ -344,6 +344,19 @@ cycle, and blocking until then would make an application hostage to the slowest
 reader on the bus. What actually happened arrives on the event stream, where a
 refusal is an `EventNAK`.
 
+A reader with a display is written the same way:
+
+```go
+p.Send(ctx, addr, osdp.TextCommand(osdp.TextDisplay{Content: "DOOR SECURE"}))
+```
+
+Two details of `osdp_TEXT` are worth knowing before you hit them. Its `Row` and
+`Column` are numbered **from one** — a zero is sent as one, so the zero value
+lands at the top-left rather than nowhere. And its hold time is in **whole
+seconds**, where `osdp_LED` and `osdp_BUZ` count in hundreds of milliseconds;
+that inconsistency is the specification's, and the field is documented rather
+than smoothed over.
+
 Both halves of a grant are **timed** rather than latched. A panel that dies
 mid-grant leaves a locked door and a reader showing the truth about it, which is
 the behaviour a door should have when its panel stops talking.

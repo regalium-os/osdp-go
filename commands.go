@@ -36,7 +36,30 @@ type (
 
 	// Tone is what an osdp_BUZ does to a reader's audible annunciator.
 	Tone = cmd.Tone
+
+	// TextDisplay is a message to put on a reader's display. Its zero value
+	// shows text permanently at the top-left of the first reader, which is
+	// what a panel wants nearly always.
+	TextDisplay = cmd.TextDisplay
+
+	// TextControl says whether a displayed message persists or expires, and
+	// whether a long line wraps.
+	TextControl = cmd.TextControl
 )
+
+// Text display controls, SIA OSDP v2.2.2 §6.12.
+const (
+	TextPermanent     = cmd.TextPermanent
+	TextPermanentWrap = cmd.TextPermanentWrap
+	TextTemporary     = cmd.TextTemporary
+	TextTemporaryWrap = cmd.TextTemporaryWrap
+)
+
+// MaxTextLength is the longest message an osdp_TEXT can carry, the length
+// field being a single octet. A longer one is truncated rather than wrapped:
+// a wrapped length leaves the device reading the rest of the message as though
+// it were the next frame, which desynchronises every device on the line.
+const MaxTextLength = cmd.MaxTextLength
 
 // Output control codes, SIA OSDP v2.2.2 §6.9.
 const (
@@ -102,6 +125,15 @@ func LEDCommand(reader, led byte, temporary LEDState, hold time.Duration, perman
 func BuzzerCommand(reader byte, tone Tone, on, off time.Duration, count byte) Message {
 	return cmd.BuzzerCommand(reader, tone, on, off, count)
 }
+
+// TextCommand builds an osdp_TEXT to write a reader's display.
+//
+//	osdp.TextCommand(osdp.TextDisplay{Content: "DOOR SECURE"})
+//
+// Row and Column are numbered from one, the top-left of a display being 1,1;
+// a zero in either is sent as one. TextDisplay.Hold is in whole seconds on the
+// wire, unlike the hundred-millisecond units osdp_LED and osdp_BUZ use.
+func TextCommand(d TextDisplay) Message { return cmd.TextCommand(d) }
 
 // Unlock builds the pair of commands that grant access at a door: release the
 // strike for hold, and show green on the reader for the same time.

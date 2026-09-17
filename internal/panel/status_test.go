@@ -62,3 +62,35 @@ func tamperOnPoll(command frame.Frame) frame.Frame {
 		return reply(command.Address, seq, cmd.LStatR, []byte{0x01, 0x00})
 	}
 }
+
+// TestAMessageReachesTheDisplay: the panel writes a reader's display through
+// the same queue everything else goes through, and the octets arrive.
+func TestAMessageReachesTheDisplay(t *testing.T) {
+	p, device := newPanel(t, 0x00)
+	rec := &recorder{}
+	go respond(t, device, rec.answer)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() { done <- p.Run(ctx) }()
+	waitFor(t, p.Events(), bus.KindOnline)
+
+	if err := p.Send(ctx, 0x00, cmd.TextCommand(cmd.TextDisplay{
+		Content: "DOOR SECURE",
+	})); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+
+	got := rec.waitForCommand(t, cmd.Text)
+	if string(got.Data[6:]) != "DOOR SECURE" {
+		t.Errorf("the display received %q, want %q", got.Data[6:], "DOOR SECURE")
+	}
+	if got.Data[3] != 1 || got.Data[4] != 1 {
+		t.Errorf("origin = %d/%d, want 1/1", got.Data[3], got.Data[4])
+	}
+
+	cancel()
+	<-done
+}
