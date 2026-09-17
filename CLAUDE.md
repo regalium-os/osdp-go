@@ -15,6 +15,9 @@ Each of these fails CI. Run `just arch` before you think you are done.
 | --- | --- |
 | No hand-written Go file exceeds 200 lines | `internal/arch/size_test.go` |
 | **No direct OpenTelemetry import, anywhere** | `internal/arch/deps_test.go` |
+| **No cgo, anywhere** | `internal/arch/deps_test.go` + CI `purity` job |
+| Clean under the race detector | CI `race` job |
+| Clean under golangci-lint | `.golangci.yml`, CI `lint` job |
 | Imports only ever point inward | `internal/arch/arch_test.go` |
 | The pure core performs no I/O | `internal/arch/purity_test.go` |
 | The standard AES-128 suite stays reachable | `internal/secure/suite_test.go` |
@@ -133,6 +136,25 @@ Vendor differences live **only** in `osdp_MFG` extension commands and `osdp_CAP`
 negotiation. A provider never reimplements framing. If a vendor appears to need
 its own frame codec, that is a quirk flag in `frame` with a fixture proving it.
 
+## Pure Go, no cgo
+
+**Never `import "C"`. Never add a dependency that pulls cgo transitively.**
+`CGO_ENABLED=0` everywhere, the race detector included — Go's detector no longer
+needs cgo, so there is no job that gets an exception.
+
+This is not preference. These panels are ARM, and pure Go is what makes
+`GOOS=linux GOARCH=arm go build` a one-flag operation and keeps a static binary
+static. CI builds for linux/arm, linux/arm64, linux/amd64, windows/amd64 and
+darwin/arm64 on every run.
+
+Two gates enforce it, because they catch different things:
+`internal/arch/deps_test.go` rejects an `import "C"` in the source, and the CI
+`purity` job rejects `runtime/cgo` appearing in the dependency graph — which no
+amount of reading the source would reveal.
+
+If something seems to need cgo — a serial library, say — the answer is a
+separate module the application opts into, not a dependency here.
+
 ## Telemetry
 
 **Never import `go.opentelemetry.io/...`. Not in the core, not in an adapter,
@@ -217,6 +239,9 @@ test that passed on an empty directory; do not ship the second.
 
 ```sh
 just arch       # architecture, purity and file-size conformance — run this
+just lint       # golangci-lint, as CI runs it
+just race       # the suite under the race detector
+just purity     # confirm nothing pulled cgo into the graph
 just test       # go test ./...
 just fixtures   # the phase gate
 just tidy       # regenerate BUILD files after moving code
