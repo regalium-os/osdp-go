@@ -85,6 +85,31 @@ jobs:
       - name: Test under the race detector
         run: go test -race -count=1 ./...
 
+  fuzz:
+    name: Fuzz the frame codec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # A short search on every run rather than a long one nobody waits for.
+      # The committed corpus under testdata/fuzz is replayed by `go test` in
+      # the job above, so a bug found once stays found; this is the hunt for
+      # the next one. The frame codec is where it pays: malformed input is the
+      # normal case on a line shared with noise.
+      - name: Search for new failing inputs
+        working-directory: internal/frame
+        run: |
+          for target in FuzzDecodeRoundTrip FuzzDecodeNeverPanics \
+                        FuzzCloneIsIndependent FuzzEncodeRoundTrip; do
+            echo "::group::$target"
+            go test -run XXX -fuzz "$target" -fuzztime 30s . || exit 1
+            echo "::endgroup::"
+          done
+
   lint:
     name: golangci-lint
     runs-on: ubuntu-latest

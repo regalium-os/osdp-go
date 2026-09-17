@@ -121,4 +121,12 @@ var (
 
 	// ErrInvalidAddress means an address above Broadcast was supplied.
 	ErrInvalidAddress = frame.ErrInvalidAddress
+
+	// ErrSecurityBlockTooLong and ErrFrameTooLong mean a frame was composed
+	// that the wire cannot describe: the length fields are fixed widths, and a
+	// value too large for one wraps rather than overflowing. Encoding is
+	// refused, because a wrapped length produces a frame that decodes cleanly
+	// into something nobody composed.
+	ErrSecurityBlockTooLong = frame.ErrSecurityBlockTooLong
+	ErrFrameTooLong         = frame.ErrFrameTooLong
 )

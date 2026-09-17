@@ -24,7 +24,10 @@ go_test(
     srcs = [
         "check_test.go",
         "decode_test.go",
+        "encode_test.go",
         "fixture_test.go",
+        "fuzz_encode_test.go",
+        "fuzz_test.go",
     ],
     data = glob(["testdata/**"]),
     deps = [":frame"],

@@ -265,7 +265,7 @@ was written down at the time.
 
 | | Status |
 | --- | --- |
-| Framing — CRC-16 / checksum, mark octets, security blocks | complete, byte-exact round trip |
+| Framing — CRC-16 / checksum, mark octets, security blocks | complete; round trip fuzzed both ways |
 | Poll cycle — enrolment, online/offline, resync, retransmission | complete |
 | Secure Channel — handshake, authenticated and encrypted traffic, key install | complete |
 | Commands — output, LED, buzzer, text, status requests | complete |
@@ -400,6 +400,27 @@ it. Any two agreeing while the third differs tells you which one moved.
 The gate fails when it finds no schemas at all. A check that reports success
 because it could not find what it was meant to inspect is worse than no check,
 because it is believed.
+
+### Fuzzing the codec
+
+Byte-exact round-tripping is a property, so it is fuzzed rather than sampled.
+Two directions, because they reach different code: feeding arbitrary octets to
+`Decode` exercises rejection thoroughly and the codec barely at all, while
+building frames from arbitrary field values means every execution produces a
+frame the encoder considers valid.
+
+```sh
+just fuzz          # 60s per target
+just fuzz 10m      # longer, when something changed
+```
+
+It has already earned its keep. The security block's length is a single octet,
+and the encoder was writing it without checking: a block of 300 data octets
+wrapped that length to 46, and the result **decoded cleanly** — the receiver
+read a 46-octet block and took the rest as the command code and its payload. A
+well-formed frame meaning something nobody composed, which is the one outcome a
+codec must never produce quietly. Both length fields are now refused rather than
+truncated, and the failing input is committed as a seed.
 
 ## Development
 

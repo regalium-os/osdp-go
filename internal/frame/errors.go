@@ -39,4 +39,19 @@ var (
 	// ErrInvalidAddress reports an address above the broadcast address, which
 	// cannot be represented in the seven bits the wire gives it.
 	ErrInvalidAddress = errors.New("osdp/frame: address out of range")
+
+	// ErrSecurityBlockTooLong reports a security block whose length cannot be
+	// written, the field being a single octet.
+	//
+	// It is an error rather than a truncation because truncating is not a
+	// smaller version of the same frame: the length octet wraps, the decoder
+	// reads a block of some other size, and the octets after it become a
+	// different command with a different payload. That frame is well formed
+	// and means something nobody composed, which is the one outcome a codec
+	// must never produce quietly.
+	ErrSecurityBlockTooLong = errors.New("osdp/frame: security block longer than its length field")
+
+	// ErrFrameTooLong reports a frame whose total length cannot be written in
+	// the two octets the header allows. The same reasoning applies.
+	ErrFrameTooLong = errors.New("osdp/frame: frame longer than its length field")
 )

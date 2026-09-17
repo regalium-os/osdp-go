@@ -64,6 +64,20 @@ race:
 arch:
     go test ./internal/arch/ -v
 
+# Failing inputs land in internal/frame/testdata/fuzz and are committed, so a
+# bug found once is a regression test forever. The seed corpus replays in every
+# `just test`; this recipe is the search that finds the next one.
+#
+# Search the frame codec for inputs that break it.
+[group('test')]
+fuzz duration='60s':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for target in FuzzDecodeRoundTrip FuzzDecodeNeverPanics FuzzCloneIsIndependent FuzzEncodeRoundTrip; do
+      printf '\n--- %s ---\n' "$target"
+      (cd internal/frame && go test -run XXX -fuzz "$target" -fuzztime {{duration}} .)
+    done
+
 # Decode the hex fixture corpus byte for byte; the gate between phases.
 [group('test')]
 fixtures:

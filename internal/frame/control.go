@@ -95,6 +95,18 @@ type SecurityBlock struct {
 	Data []byte
 }
 
+// MaxSecurityBlockSize is the largest security block the wire can describe,
+// the leading length octet included. SIA OSDP v2.2.2 §5.8.
+const MaxSecurityBlockSize = 0xFF
+
+// MaxFrameSize is the largest frame the two-octet length field can describe.
+//
+// The specification's own payload ceiling is far lower, and a device's real
+// one lower still -- osdp_CAP_RECEIVE_BUFFERSIZE is how a panel finds out. This
+// is not that limit: it is the point past which the header cannot say how long
+// the frame is, which is a property of the format rather than of any device.
+const MaxFrameSize = 0xFFFF
+
 // wireLen is the block's length as the leading length octet reports it: the
 // length octet itself, the type octet, and the data.
 func (s *SecurityBlock) wireLen() int {

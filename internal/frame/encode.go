@@ -22,9 +22,9 @@ func (f Frame) Append(ctx context.Context, dst []byte) ([]byte, error) {
 	_, span := telemetry.Start(ctx, "osdp.frame.encode", f.Trace())
 	defer span.End()
 
-	if !f.Address.Valid() {
-		span.RecordError(ErrInvalidAddress)
-		return dst, ErrInvalidAddress
+	if err := f.representable(); err != nil {
+		span.RecordError(err)
+		return dst, err
 	}
 
 	if f.HasMark {
@@ -38,6 +38,25 @@ func (f Frame) Append(ctx context.Context, dst []byte) ([]byte, error) {
 		dst = append(dst, byte(f.Check))
 	}
 	return dst, nil
+}
+
+// representable reports whether this frame can be written down at all.
+//
+// The two length fields are fixed widths, and a value too large for one does
+// not overflow into an error: it wraps, and the result is a frame that decodes
+// perfectly into something else. A caller that composed a 300-octet security
+// block and got back a valid frame carrying a 46-octet one would have no way of
+// knowing, so the frame is refused instead.
+func (f Frame) representable() error {
+	switch {
+	case !f.Address.Valid():
+		return ErrInvalidAddress
+	case f.Security.wireLen() > MaxSecurityBlockSize:
+		return ErrSecurityBlockTooLong
+	case f.Len() > MaxFrameSize:
+		return ErrFrameTooLong
+	}
+	return nil
 }
 
 // AppendBody appends the octets the error check covers: start of message

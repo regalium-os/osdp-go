@@ -26,7 +26,7 @@ type fixture struct {
 
 // loadCorpus reads the fixture file. A record opens with @name, carries a !
 // description, and is followed by whitespace-separated hex octets.
-func loadCorpus(t *testing.T, path string) []fixture {
+func loadCorpus(t testing.TB, path string) []fixture {
 	t.Helper()
 
 	f, err := os.Open(path)
