@@ -199,24 +199,28 @@ Google AIP, with standard methods and hierarchical resource names such as
 `devices/{device}/events/{event}`. CI lints it against the AIP rules strictly,
 with in-proto disable comments ignored.
 
-`flatbuffers/` mirrors a deliberately small subset — the poll-cycle payloads
-decoded thousands of times a minute, where allocation on the hot path matters.
+`protobuf/generated/flatbuffers/` mirrors a deliberately small subset — the
+poll-cycle payloads decoded thousands of times a minute, where allocation on the
+hot path matters. It is generated from the same descriptor set as the Go types,
+so nobody maintains a second copy by hand.
 
 ```mermaid
 flowchart LR
     proto[".proto<br/><b>source of truth</b><br/>AIP resource-oriented"]
     fbs[".fbs<br/>poll-cycle mirror only"]
+    lock["buffers.lock<br/><b>the ordinal ledger</b><br/>committed"]
     gengo["protobuf/generated/go"]
-    genfbs["flatbuffers/generated/go"]
+    genfbs["protobuf/generated/flatbuffers/go"]
     drift{"schemadrift<br/>every CI run"}
     red["CI red<br/>merge blocked"]
     green["CI green"]
 
     proto -->|buf generate| gengo
-    fbs -->|flatc| genfbs
+    fbs -->|buffers generate| genfbs
     proto -. "mirrored subset" .-> fbs
     proto --> drift
     fbs --> drift
+    lock --> drift
     drift -->|"fields diverge"| red
     drift -->|"identical"| green
 
@@ -228,15 +232,23 @@ flowchart LR
 
 Two schemas describing one thing invite drift, and drift here is not a compile
 error but a field silently decoding at the wrong offset on a live bus. So a
-mirrored table names its source message in the schema itself, where the two
-cannot come apart:
+mirrored schema names its source in the file itself, where the two cannot come
+apart — the generator writes the declaration:
 
 ```
-/// mirrors: osdp.poll.v1.CardRead
-table CardRead { ... }
+// source: osdp/event/v1/payloads.proto
+namespace osdp.event.v1;
 ```
 
-and `just gen drift` verifies every declared pair on every CI run.
+`just gen drift` then checks **three** artefacts against each other, not two.
+The `.proto` says what a field is and which number it holds. `buffers.lock` —
+the committed ordinal ledger — says which target slot that number was given.
+The `.fbs` says where the mirror actually put it. Any two agreeing while the
+third differs is the interesting case, because it says which one moved.
+
+The gate fails when it finds no schemas at all. A check that reports success
+because it could not find what it was meant to inspect is worse than no check,
+because it is believed.
 
 ## The runtime
 

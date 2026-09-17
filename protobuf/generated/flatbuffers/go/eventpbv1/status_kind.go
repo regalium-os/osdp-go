@@ -4,22 +4,22 @@ package eventpbv1
 
 import "strconv"
 
-// / Which contact a status change refers to.
+/// Which contact a status change refers to.
 type StatusKind int32
 
 const (
 	/// Default, unused.
 	StatusKindSTATUS_KIND_UNSPECIFIED StatusKind = 0
 	/// A monitored input, such as door position or request-to-exit.
-	StatusKindSTATUS_KIND_INPUT StatusKind = 1
+	StatusKindSTATUS_KIND_INPUT       StatusKind = 1
 	/// A controlled output, such as a strike relay.
-	StatusKindSTATUS_KIND_OUTPUT StatusKind = 2
+	StatusKindSTATUS_KIND_OUTPUT      StatusKind = 2
 	/// The device's tamper switch.
-	StatusKindSTATUS_KIND_TAMPER StatusKind = 3
+	StatusKindSTATUS_KIND_TAMPER      StatusKind = 3
 	/// The device's power supply.
-	StatusKindSTATUS_KIND_POWER StatusKind = 4
+	StatusKindSTATUS_KIND_POWER       StatusKind = 4
 	/// The reader's local status, as reported by osdp_LSTATR.
-	StatusKindSTATUS_KIND_LOCAL StatusKind = 5
+	StatusKindSTATUS_KIND_LOCAL       StatusKind = 5
 )
 
 var EnumNamesStatusKind = map[StatusKind]string{

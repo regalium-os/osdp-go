@@ -6,7 +6,7 @@ import (
 	flatbuffers "github.com/google/flatbuffers/go"
 )
 
-// / A credential presented at a reader. osdp_RAW.
+/// A credential presented at a reader. osdp_RAW.
 type CardRead struct {
 	_tab flatbuffers.Table
 }
@@ -42,7 +42,7 @@ func (rcv *CardRead) Table() flatbuffers.Table {
 	return rcv._tab
 }
 
-// / Which reader on the device, usually zero.
+/// Which reader on the device, usually zero.
 func (rcv *CardRead) Reader() int32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
 	if o != 0 {
@@ -51,13 +51,13 @@ func (rcv *CardRead) Reader() int32 {
 	return 0
 }
 
-// / Which reader on the device, usually zero.
+/// Which reader on the device, usually zero.
 func (rcv *CardRead) MutateReader(n int32) bool {
 	return rcv._tab.MutateInt32Slot(4, n)
 }
 
-// / The format code the device reported. Zero means the raw bit stream, with
-// / no format applied.
+/// The format code the device reported. Zero means the raw bit stream, with
+/// no format applied.
 func (rcv *CardRead) Format() int32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
@@ -66,14 +66,14 @@ func (rcv *CardRead) Format() int32 {
 	return 0
 }
 
-// / The format code the device reported. Zero means the raw bit stream, with
-// / no format applied.
+/// The format code the device reported. Zero means the raw bit stream, with
+/// no format applied.
 func (rcv *CardRead) MutateFormat(n int32) bool {
 	return rcv._tab.MutateInt32Slot(6, n)
 }
 
-// / Significant bits in data, which is not necessarily a multiple of eight: a
-// / 26-bit Wiegand credential is the commonest case in the field.
+/// Significant bits in data, which is not necessarily a multiple of eight: a
+/// 26-bit Wiegand credential is the commonest case in the field.
 func (rcv *CardRead) BitCount() int32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
@@ -82,18 +82,18 @@ func (rcv *CardRead) BitCount() int32 {
 	return 0
 }
 
-// / Significant bits in data, which is not necessarily a multiple of eight: a
-// / 26-bit Wiegand credential is the commonest case in the field.
+/// Significant bits in data, which is not necessarily a multiple of eight: a
+/// 26-bit Wiegand credential is the commonest case in the field.
 func (rcv *CardRead) MutateBitCount(n int32) bool {
 	return rcv._tab.MutateInt32Slot(8, n)
 }
 
-// / The credential bits, most significant first, zero padded to the next
-// / octet.
-// /
-// / This is personal data and frequently the only thing standing between a
-// / stranger and a door. It must not be logged, must not be attached to a
-// / span, and should be hashed or truncated before it leaves the panel.
+/// The credential bits, most significant first, zero padded to the next
+/// octet.
+///
+/// This is personal data and frequently the only thing standing between a
+/// stranger and a door. It must not be logged, must not be attached to a
+/// span, and should be hashed or truncated before it leaves the panel.
 func (rcv *CardRead) Data(j int) byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
@@ -119,12 +119,12 @@ func (rcv *CardRead) DataBytes() []byte {
 	return nil
 }
 
-// / The credential bits, most significant first, zero padded to the next
-// / octet.
-// /
-// / This is personal data and frequently the only thing standing between a
-// / stranger and a door. It must not be logged, must not be attached to a
-// / span, and should be hashed or truncated before it leaves the panel.
+/// The credential bits, most significant first, zero padded to the next
+/// octet.
+///
+/// This is personal data and frequently the only thing standing between a
+/// stranger and a door. It must not be logged, must not be attached to a
+/// span, and should be hashed or truncated before it leaves the panel.
 func (rcv *CardRead) MutateData(j int, n byte) bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
