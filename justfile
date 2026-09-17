@@ -33,9 +33,14 @@ test:
     go test -count=1 ./...
 
 # Run the suite under the race detector, as CI does.
+#
+# cgo is on here and nowhere else. Go's detector builds without it only on
+# darwin, so a Linux machine cannot run this with CGO_ENABLED=0 -- and a Mac
+# that can will happily hide that from you until CI says otherwise. See the
+# race job in .github/workflows/ci.yml.
 [group('test')]
 race:
-    CGO_ENABLED=0 go test -race -count=1 ./...
+    CGO_ENABLED=1 go test -race -count=1 ./...
 
 # Architecture conformance: layering direction and I/O purity.
 [group('test')]

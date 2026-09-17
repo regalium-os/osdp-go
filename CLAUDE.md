@@ -160,8 +160,6 @@ its own frame codec, that is a quirk flag in `frame` with a fixture proving it.
 ## Pure Go, no cgo
 
 **Never `import "C"`. Never add a dependency that pulls cgo transitively.**
-`CGO_ENABLED=0` everywhere, the race detector included — Go's detector no longer
-needs cgo, so there is no job that gets an exception.
 
 This is not preference. These panels are ARM, and pure Go is what makes
 `GOOS=linux GOARCH=arm go build` a one-flag operation and keeps a static binary
@@ -170,8 +168,19 @@ darwin/arm64 on every run.
 
 Two gates enforce it, because they catch different things:
 `internal/arch/deps_test.go` rejects an `import "C"` in the source, and the CI
-`purity` job rejects `runtime/cgo` appearing in the dependency graph — which no
-amount of reading the source would reveal.
+`purity` job — which runs with cgo off — rejects `runtime/cgo` appearing in the
+dependency graph, which no amount of reading the source would reveal.
+
+`CGO_ENABLED=0` everywhere, with exactly one exception: the `race` job, and
+`just race` to match it. Go's race detector builds without cgo only on darwin;
+on linux/amd64 and linux/arm64 the toolchain refuses with `-race requires cgo`,
+and on linux/arm the detector does not exist at all. **Know this before trusting
+a local run**: `CGO_ENABLED=0 go test -race ./...` passes on a Mac and cannot
+pass on the Linux runner, which is exactly how this reached CI red.
+
+The exception costs nothing, because the ban is about what ships rather than how
+a test binary is instrumented, and neither gate above runs inside that job. A
+dependency needing cgo still fails in `purity`.
 
 If something seems to need cgo — a serial library, say — the answer is a
 separate module the application opts into, not a dependency here.

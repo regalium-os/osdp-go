@@ -11,9 +11,8 @@ on:
 permissions:
   contents: read
 
-# cgo is off everywhere, including the race job. Go's race detector no longer
-# needs it, so there is no reason to make an exception that would let a cgo
-# dependency creep in through the one job nobody looks at.
+# cgo is off by default for every job. The race detector is the one exception,
+# and it overrides this at the job level rather than here; see that job.
 env:
   CGO_ENABLED: "0"
 
@@ -46,6 +45,21 @@ jobs:
   race:
     name: Race detector
     runs-on: ubuntu-latest
+
+    # The single job that enables cgo, because on linux it has no choice: Go's
+    # race detector builds without cgo only on darwin. On linux/amd64 and
+    # linux/arm64 the toolchain refuses outright -- "-race requires cgo" -- and
+    # on linux/arm the detector does not exist at all. Running this on a macOS
+    # runner to keep CGO_ENABLED=0 would test races on a platform no panel uses.
+    #
+    # It does not weaken the cgo ban, which is about what ships rather than how
+    # the tests are instrumented. Both gates still hold: internal/arch rejects
+    # an `import "C"` in the source, and the purity job resolves the dependency
+    # graph with cgo off, so a dependency that needs cgo fails there regardless
+    # of what this job links into a test binary.
+    env:
+      CGO_ENABLED: "1"
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -70,7 +84,10 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - uses: golangci/golangci-lint-action@v6
+      # v9 or later is required: the action series through v6 cannot install
+      # golangci-lint v2 at all, and refuses the version string rather than
+      # falling back. .golangci.yml is v2 configuration.
+      - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.13.1
           args: --timeout=5m
