@@ -1,0 +1,50 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "panel",
+    srcs = [
+        "clock.go",
+        "cycle.go",
+        "doc.go",
+        "options.go",
+        "panel.go",
+        "reader.go",
+    ],
+    importpath = "github.com/regalium-os/osdp-go/internal/panel",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/bus",
+        "//internal/frame",
+        "//internal/transport",
+        "//telemetry",
+    ],
+)
+
+go_test(
+    name = "panel_test",
+    srcs = [
+        "options_test.go",
+        "panel_test.go",
+        "reader_test.go",
+        "support_test.go",
+    ],
+    embed = [":panel"],
+    deps = [
+        "//internal/bus",
+        "//internal/cmd",
+        "//internal/driver",
+        "//internal/frame",
+        "//internal/transport",
+    ],
+)
+
+# Read as data by the conformance tests; without it they would run blind.
+# keep
+filegroup(
+    name = "sources",
+    srcs = glob(["**/*.go"]),
+    visibility = ["//visibility:public"],
+)

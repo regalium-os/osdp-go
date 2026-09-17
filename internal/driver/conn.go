@@ -49,6 +49,15 @@ func (p *conn) Write(b []byte) (int, error) {
 // SetReadDeadline bounds how long Read blocks.
 func (p *conn) SetReadDeadline(t time.Time) error { return translate(p.c.SetReadDeadline(t)) }
 
+// SetWriteDeadline bounds how long Write blocks.
+//
+// It is not part of transport.Port, which every third-party transport must
+// satisfy, but the runtime looks for it: a socket whose peer has stopped
+// reading will block a write forever, and a panel that cannot be cancelled out
+// of that is a panel that cannot be shut down. Every transport built on
+// net.Conn gets this for free, which is all of them here.
+func (p *conn) SetWriteDeadline(t time.Time) error { return translate(p.c.SetWriteDeadline(t)) }
+
 // Close releases the connection. It is safe to call more than once.
 func (p *conn) Close() error {
 	err := p.c.Close()

@@ -35,6 +35,26 @@ type Port interface {
 	Close() error
 }
 
+// WriteDeadliner is the optional half of a Port: a transport that can also
+// bound how long a write blocks.
+//
+// It is deliberately not part of Port. Port is what every transport must
+// satisfy, including one wrapping something that cannot time out a write at
+// all, and widening it would break every implementation written against it.
+//
+// The runtime uses it when a port provides it, and it matters: a socket whose
+// peer has stopped reading blocks a write indefinitely, and a runtime with no
+// way out of that cannot honour a cancelled context. A port without it is still
+// perfectly usable -- closing it is then the only way to interrupt a wedged
+// write, which is a blunter shutdown but still a shutdown.
+//
+// Every transport in the driver package implements it, because all of them are
+// built on net.Conn.
+type WriteDeadliner interface {
+	// SetWriteDeadline bounds how long Write blocks. A zero time clears it.
+	SetWriteDeadline(t time.Time) error
+}
+
 // Line describes the physical parameters of a bus.
 //
 // It is data, not configuration to be acted on here: the driver interprets it.

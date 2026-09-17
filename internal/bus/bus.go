@@ -66,6 +66,13 @@ func New(line transport.Line, addrs []frame.Address, scheme frame.Scheme, opts .
 // Devices returns the devices on this bus, in poll order.
 func (b *Bus) Devices() []*Device { return b.devices }
 
+// Line returns the physical parameters this bus was built for.
+//
+// The core does not act on them -- it has no idea what a baud rate is -- but
+// the runtime driving the line does, and the turnaround in particular is not
+// something it should be told twice and risk disagreeing about.
+func (b *Bus) Line() transport.Line { return b.line }
+
 // Step is one command the bus wants sent, and how long to wait for an answer.
 type Step struct {
 	// Device is the device being addressed.

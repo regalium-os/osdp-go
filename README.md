@@ -15,6 +15,7 @@ flowchart TB
 
     subgraph internal["internal/ — not importable from outside the module"]
         subgraph edge["edge — the only layers that touch the world"]
+            panel["<b>panel</b><br/>the runtime · poll loop · clock"]
             provider["<b>provider</b><br/>HID · Gallagher · Salto · generic"]
             driver["<b>driver</b><br/>RS-485 · TCP · in-memory pipe"]
         end
@@ -28,9 +29,12 @@ flowchart TB
         end
     end
 
+    api --> panel
     api --> provider
     api --> bus
     api --> frame
+    panel --> bus
+    panel --> transport
     provider --> bus
     provider --> driver
     bus --> cmd
@@ -44,7 +48,7 @@ flowchart TB
     classDef io fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d
     classDef pub fill:#dcfce7,stroke:#15803d,color:#14532d
     class bus,cmd,secure,frame,transport pure
-    class provider,driver io
+    class panel,provider,driver io
     class api pub
 ```
 
@@ -234,6 +238,44 @@ table CardRead { ... }
 
 and `just gen drift` verifies every declared pair on every CI run.
 
+## The runtime
+
+Everything under `internal/` computes: it takes arguments and returns a decision.
+`panel` is the one component that acts. It owns the port, waits on the clock,
+and turns the bus's decisions into traffic — which means there is exactly one
+place in this library that can block, worth knowing when a line goes quiet.
+
+```go
+p := osdp.NewPanel(bus, port)
+defer p.Close()
+
+go func() {
+    for event := range p.Events() {  // Run closes this channel as it returns
+        switch event.Kind {
+        case osdp.EventCardRead: // event.Card is a credential; do not log it
+        case osdp.EventOffline:  // a reader stopped answering
+        }
+    }
+}()
+
+err := p.Run(ctx) // nil when ctx is cancelled
+```
+
+`New` starts nothing, so a panel can be built, inspected and discarded without a
+single octet reaching a line. `Run` owns everything it starts and nothing
+outlives it. `Close` is idempotent and safe after a failed `Run`.
+
+**Backpressure is a decision, not an accident.** A full event buffer stops the
+poll cycle rather than dropping events, because the event this library most
+often carries is a credential presented at a door, and quietly forgetting that
+somebody badged in is not a trade worth making. `WithEventBuffer` sizes the
+slack; a consumer that stops reading altogether stalls the line.
+
+Cancellation is observed between transactions and while publishing, both
+immediately — but never inside a blocked read or write, because no context
+interrupts a blocked syscall. Those are bounded by the line's `ReplyTimeout`
+instead, so shutdown takes up to one reply timeout rather than none.
+
 ## Phases
 
 Each phase ends with a fixture-corpus test: hex-dumped OSDP traffic decoded byte
@@ -251,11 +293,13 @@ flowchart LR
     g3{"per-vendor MFG + CAP<br/>fixtures pass"}
     p4["<b>Phase 4</b><br/>Secure Channel<br/>on the poll cycle"]
     g4{"handshake + authenticated<br/>traffic, both ends"}
+    p5["<b>Phase 5</b><br/>the runtime<br/>poll loop · lifecycle"]
+    g5{"enrolment, offline and<br/>shutdown over a real port"}
 
-    p0 --> g0 --> p1 --> g1 --> p2 --> g2 --> p3 --> g3 --> p4 --> g4
+    p0 --> g0 --> p1 --> g1 --> p2 --> g2 --> p3 --> g3 --> p4 --> g4 --> p5 --> g5
 
     classDef done fill:#dcfce7,stroke:#15803d,color:#14532d
-    class p0,g0,p1,g1,p2,g2,p3,g3,p4,g4 done
+    class p0,g0,p1,g1,p2,g2,p3,g3,p4,g4,p5,g5 done
 ```
 
 ## Using it

@@ -56,6 +56,16 @@ var layers = map[string]layer{
 		pure:    true,
 	},
 	"driver": {dir: "internal/driver", allowed: []string{"transport"}, pure: false},
+
+	// panel is the runtime: the one component that owns a port, consults a
+	// clock and turns the bus's decisions into traffic. It is an edge layer
+	// for exactly that reason, and it depends on the core rather than the
+	// other way round -- bus has no idea it exists.
+	"panel": {
+		dir:     "internal/panel",
+		allowed: []string{"frame", "bus", "transport"},
+		pure:    false,
+	},
 	"provider": {
 		dir:     "internal/provider",
 		allowed: []string{"frame", "cmd", "secure", "bus", "transport", "driver", "protobuf"},
