@@ -1,0 +1,117 @@
+// The high-frequency OSDP payloads.
+//
+// These are produced by the poll cycle, thousands of times a minute on a busy
+// site, and they are the subset mirrored into a zero-copy schema. Everything
+// else in this API is low-rate configuration and stays protobuf only.
+//
+// Two of them carry personal data -- a credential and a PIN -- which is why the
+// mirror is worth the trouble: these are the messages that move, and they are
+// also the messages that must not be casually copied into a log line.
+//
+// There are no protovalidate rules in this file, deliberately. Every field is
+// OUTPUT_ONLY: the panel produces these from what it observed on the bus, so
+// there is no client input to validate, and the rules would only be dead weight
+// in the mirrored schema. Validation lives on the request messages, where a
+// client actually supplies something.
+
+syntax = "proto3";
+
+package osdp.event.v1;
+
+import "google/api/field_behavior.proto";
+
+option go_package = "github.com/regalium-os/osdp-go/protobuf/generated/go/event/v1/eventpbv1;eventpbv1";
+option java_multiple_files = true;
+option java_outer_classname = "PayloadsProto";
+option java_package = "dev.regalium.osdp.event.v1";
+
+// A credential presented at a reader. osdp_RAW.
+message CardRead {
+  // Which reader on the device, usually zero.
+  int32 reader = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The format code the device reported. Zero means the raw bit stream, with
+  // no format applied.
+  int32 format = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Significant bits in data, which is not necessarily a multiple of eight: a
+  // 26-bit Wiegand credential is the commonest case in the field.
+  int32 bit_count = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The credential bits, most significant first, zero padded to the next
+  // octet.
+  //
+  // This is personal data and frequently the only thing standing between a
+  // stranger and a door. It must not be logged, must not be attached to a
+  // span, and should be hashed or truncated before it leaves the panel.
+  bytes data = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// Digits entered at a keypad. osdp_KEYPAD.
+message KeypadEntry {
+  // Which reader on the device the keypad belongs to.
+  int32 reader = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The raw key codes.
+  //
+  // Like a credential, this is personal data: it is frequently a PIN. The same
+  // handling rules apply.
+  bytes keys = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// Which contact a status change refers to.
+enum StatusKind {
+  // Default, unused.
+  STATUS_KIND_UNSPECIFIED = 0;
+
+  // A monitored input, such as door position or request-to-exit.
+  STATUS_KIND_INPUT = 1;
+
+  // A controlled output, such as a strike relay.
+  STATUS_KIND_OUTPUT = 2;
+
+  // The device's tamper switch.
+  STATUS_KIND_TAMPER = 3;
+
+  // The device's power supply.
+  STATUS_KIND_POWER = 4;
+
+  // The reader's local status, as reported by osdp_LSTATR.
+  STATUS_KIND_LOCAL = 5;
+}
+
+// A monitored or controlled contact changed.
+message StatusChange {
+  // Which kind of contact changed.
+  StatusKind kind = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Which contact of that kind, zero-based.
+  int32 index = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The new state: true is active, meaning a contact closed, a tamper
+  // triggered, or an output energised.
+  bool active = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// A vendor-defined message. osdp_MFG.
+//
+// The body is opaque here on purpose. Interpreting it is what a vendor provider
+// is for, and decoding it in the shared schema is how a protocol library
+// acquires a per-vendor fork of its own parser.
+message ManufacturerEvent {
+  // The IEEE OUI that defined the message.
+  int32 oui = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What the vendor's provider made of the message, in that provider's own
+  // vocabulary. Empty when no provider recognised it.
+  string kind = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The vendor-defined remainder, decoded if the provider recognised it and
+  // verbatim otherwise.
+  bytes body = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether a provider understood the message. An unrecognised extension is
+  // passed through rather than discarded: an integrator with vendor
+  // documentation can act on what this library cannot.
+  bool recognized = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+}

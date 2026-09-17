@@ -5,6 +5,17 @@ modules:
 lint:
   use:
     - STANDARD
+  except:
+    # buf's STANDARD category and Google AIP disagree here, and AIP is the
+    # authority for this schema.
+    #
+    # AIP-131 requires a standard Get to return the resource itself, not a
+    # GetDeviceResponse wrapper, and AIP-133 and AIP-134 say the same for
+    # Create and Update. Honouring buf would mean three near-empty wrapper
+    # messages per resource and a schema that fails the AIP linter CI actually
+    # gates on.
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - RPC_RESPONSE_STANDARD_NAME
 breaking:
   use:
     - FILE

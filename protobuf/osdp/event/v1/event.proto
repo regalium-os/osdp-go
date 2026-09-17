@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package osdp.event.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+import "osdp/event/v1/enums.proto";
+import "osdp/event/v1/payloads.proto";
+
+option go_package = "github.com/regalium-os/osdp-go/protobuf/generated/go/event/v1/eventpbv1;eventpbv1";
+option java_multiple_files = true;
+option java_outer_classname = "EventProto";
+option java_package = "dev.regalium.osdp.event.v1";
+
+// An Event is something that happened at a device: a credential presented, a
+// contact changed, a reader that stopped answering.
+//
+// Events are nested under the device that produced them, and they are
+// immutable. Nothing here has a Create or an Update method: events are written
+// by the poll cycle as it observes the bus, and an audit record a client can
+// edit is not an audit record.
+message Event {
+  option (google.api.resource) = {
+    type: "osdp.regalium.dev/Event"
+    pattern: "devices/{device}/events/{event}"
+    singular: "event"
+    plural: "events"
+  };
+
+  // The event name.
+  // Format: devices/{device}/events/{event}
+  string name = 1 [
+    (google.api.field_behavior) = IDENTIFIER,
+    (buf.validate.field).string.pattern = "^devices/[^/]+/events/[^/]+$",
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+
+  // What this event records.
+  EventKind kind = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the panel observed it.
+  //
+  // This is the panel's clock, not the device's: OSDP devices do not timestamp
+  // their replies, and the poll cycle is the only clock there is. On a bus
+  // polled every few tens of milliseconds the difference is small, but it is a
+  // difference, and a forensic reconstruction should know which clock it has.
+  google.protobuf.Timestamp event_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Exactly one payload, selected by kind.
+  //
+  // A kind with no payload -- a device going offline, a resynchronisation --
+  // leaves this unset.
+  oneof payload {
+    // Set when kind is EVENT_KIND_CARD_READ.
+    CardRead card_read = 4;
+
+    // Set when kind is EVENT_KIND_KEYPAD.
+    KeypadEntry keypad = 5;
+
+    // Set when kind is EVENT_KIND_STATUS_CHANGE.
+    StatusChange status_change = 6;
+
+    // Set when kind is EVENT_KIND_MANUFACTURER.
+    ManufacturerEvent manufacturer = 7;
+  }
+
+  // Why the device refused a command, set when kind is
+  // EVENT_KIND_COMMAND_REFUSED. This is the osdp_NAK error code.
+  int32 refusal_code = 8 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int32.gte = 0
+  ];
+
+  // Human-readable explanation of refusal_code.
+  string refusal_reason = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether the exchange that produced this event ran over an established
+  // secure channel.
+  //
+  // Worth recording on every event, not only security ones: a credential that
+  // arrived in the clear is a different piece of evidence from one that arrived
+  // authenticated, and after the fact there is no way to tell them apart unless
+  // it was written down at the time.
+  bool secure = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When this record was written.
+  google.protobuf.Timestamp create_time = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+}

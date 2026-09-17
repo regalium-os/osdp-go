@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package osdp.event.v1;
+
+option go_package = "github.com/regalium-os/osdp-go/protobuf/generated/go/event/v1/eventpbv1;eventpbv1";
+option java_multiple_files = true;
+option java_outer_classname = "EnumsProto";
+option java_package = "dev.regalium.osdp.event.v1";
+
+// What an event records.
+//
+// The kinds a panel acts on are few. Most poll replies say nothing happened,
+// and those produce no event at all: an Event exists because something did.
+enum EventKind {
+  // Default, unused.
+  EVENT_KIND_UNSPECIFIED = 0;
+
+  // A credential was presented at a reader.
+  EVENT_KIND_CARD_READ = 1;
+
+  // Digits were entered at a keypad.
+  EVENT_KIND_KEYPAD = 2;
+
+  // A monitored or controlled contact changed.
+  EVENT_KIND_STATUS_CHANGE = 3;
+
+  // A device that was offline started answering.
+  EVENT_KIND_DEVICE_ONLINE = 4;
+
+  // A device missed enough consecutive polls to be presumed gone.
+  EVENT_KIND_DEVICE_OFFLINE = 5;
+
+  // A device refused a command and said why.
+  EVENT_KIND_COMMAND_REFUSED = 6;
+
+  // A device reported it had lost synchronisation and the exchange restarted.
+  EVENT_KIND_RESYNC = 7;
+
+  // A vendor-defined message arrived that only that vendor's provider
+  // understands.
+  EVENT_KIND_MANUFACTURER = 8;
+
+  // A message failed authentication and the secure session was torn down.
+  //
+  // This is the one kind that is always worth an alert. It means something on
+  // the line altered a frame, and the specification's response is to abandon
+  // the session rather than resynchronise within it.
+  EVENT_KIND_SECURITY_VIOLATION = 9;
+}

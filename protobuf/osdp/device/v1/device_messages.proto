@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package osdp.device.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/protobuf/field_mask.proto";
+import "osdp/device/v1/device.proto";
+
+option go_package = "github.com/regalium-os/osdp-go/protobuf/generated/go/device/v1/devicepbv1;devicepbv1";
+option java_multiple_files = true;
+option java_outer_classname = "DeviceMessagesProto";
+option java_package = "dev.regalium.osdp.device.v1";
+
+// Request message for DeviceService.GetDevice.
+message GetDeviceRequest {
+  // The device to retrieve.
+  // Format: devices/{device}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "osdp.regalium.dev/Device",
+    (buf.validate.field).string.pattern = "^devices/[^/]+$"
+  ];
+}
+
+// Request message for DeviceService.ListDevices.
+message ListDevicesRequest {
+  // Maximum number of devices to return. The server may return fewer. Zero
+  // selects a server-chosen default.
+  int32 page_size = 1 [
+    (google.api.field_behavior) = OPTIONAL,
+    (buf.validate.field).int32 = {
+      gte: 0
+      lte: 1000
+    }
+  ];
+
+  // A page token from a previous ListDevices call. All other arguments must
+  // match the call that produced it.
+  string page_token = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Filter expression, AIP-160. For example `state = DEVICE_STATE_OFFLINE`, or
+  // `using_default_key = true` to find every device still on SCBK-D.
+  string filter = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Sort order, AIP-132. Defaults to address ascending, which is poll order.
+  string order_by = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Response message for DeviceService.ListDevices.
+message ListDevicesResponse {
+  // The devices, in poll order unless order_by said otherwise.
+  repeated Device devices = 1;
+
+  // Pass to the next ListDevices call to retrieve the following page. Empty
+  // when there are no more.
+  string next_page_token = 2;
+}
+
+// Request message for DeviceService.CreateDevice.
+message CreateDeviceRequest {
+  // The device to create. Its name field is ignored; the server assigns one
+  // from device_id.
+  Device device = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The identifier to use for the device, forming devices/{device_id}. When
+  // empty the server chooses one.
+  string device_id = 2 [
+    (google.api.field_behavior) = OPTIONAL,
+    (buf.validate.field).string.pattern = "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$",
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+}
+
+// Request message for DeviceService.UpdateDevice.
+message UpdateDeviceRequest {
+  // The device to update. Its name field identifies which.
+  Device device = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Fields to update. An empty mask updates every mutable field.
+  //
+  // Most of a Device is OUTPUT_ONLY: what a device reports about itself is not
+  // editable through this API, because editing it would not change the device.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Request message for DeviceService.DeleteDevice.
+message DeleteDeviceRequest {
+  // The device to remove from the panel's records. The physical device is
+  // unaffected; it simply stops being polled.
+  // Format: devices/{device}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "osdp.regalium.dev/Device",
+    (buf.validate.field).string.pattern = "^devices/[^/]+$"
+  ];
+}

@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package osdp.event.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "osdp/event/v1/event.proto";
+
+option go_package = "github.com/regalium-os/osdp-go/protobuf/generated/go/event/v1/eventpbv1;eventpbv1";
+option java_multiple_files = true;
+option java_outer_classname = "EventMessagesProto";
+option java_package = "dev.regalium.osdp.event.v1";
+
+// Request message for EventService.GetEvent.
+message GetEventRequest {
+  // The event to retrieve.
+  // Format: devices/{device}/events/{event}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "osdp.regalium.dev/Event",
+    (buf.validate.field).string.pattern = "^devices/[^/]+/events/[^/]+$"
+  ];
+}
+
+// Request message for EventService.ListEvents.
+message ListEventsRequest {
+  // The device whose events to list.
+  //
+  // The literal "-" lists across every device, which is how a panel-wide audit
+  // trail is read.
+  // Format: devices/{device}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "osdp.regalium.dev/Event",
+    (buf.validate.field).string.pattern = "^devices/[^/]+$"
+  ];
+
+  // Maximum number of events to return. The server may return fewer. Zero
+  // selects a server-chosen default.
+  int32 page_size = 2 [
+    (google.api.field_behavior) = OPTIONAL,
+    (buf.validate.field).int32 = {
+      gte: 0
+      lte: 1000
+    }
+  ];
+
+  // A page token from a previous ListEvents call. All other arguments must
+  // match the call that produced it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Filter expression, AIP-160. For example
+  // `kind = EVENT_KIND_SECURITY_VIOLATION`, or `secure = false` to find
+  // credentials that arrived unauthenticated.
+  string filter = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // Sort order, AIP-132. Defaults to event_time descending, newest first.
+  string order_by = 5 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Response message for EventService.ListEvents.
+message ListEventsResponse {
+  // The events, newest first unless order_by said otherwise.
+  repeated Event events = 1;
+
+  // Pass to the next ListEvents call to retrieve the following page. Empty
+  // when there are no more.
+  string next_page_token = 2;
+}

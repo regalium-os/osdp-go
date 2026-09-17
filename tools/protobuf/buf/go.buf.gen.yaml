@@ -8,3 +8,6 @@ plugins:
   - remote: buf.build/protocolbuffers/go:v1.36.11
     out: protobuf/generated/go
     opt: module=github.com/regalium-os/osdp-go/protobuf/generated/go
+  - remote: buf.build/grpc/go:v1.6.0
+    out: protobuf/generated/go
+    opt: module=github.com/regalium-os/osdp-go/protobuf/generated/go

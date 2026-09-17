@@ -6,7 +6,5 @@ proto_path: ./protobuf
 
 # Optional: folders and files the linter skips entirely. A bare directory name
 # covers everything under it; * and ** work as usual.
-# exclude:
-#   - vendor
-#   - third_party
-#   - "**/*.pb.proto"
+exclude:
+  - bazel-osdp-go

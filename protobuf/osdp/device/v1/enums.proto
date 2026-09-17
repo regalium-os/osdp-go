@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package osdp.device.v1;
+
+option go_package = "github.com/regalium-os/osdp-go/protobuf/generated/go/device/v1/devicepbv1;devicepbv1";
+option java_multiple_files = true;
+option java_outer_classname = "EnumsProto";
+option java_package = "dev.regalium.osdp.device.v1";
+
+// What the control panel currently believes about a device.
+//
+// The states are ordered by how much is known. A device is polled in every one
+// of them, offline included: polling is how it comes back.
+enum DeviceState {
+  // Default, unused.
+  DEVICE_STATE_UNSPECIFIED = 0;
+
+  // The device has missed enough consecutive polls to be presumed gone.
+  DEVICE_STATE_OFFLINE = 1;
+
+  // The device answered and is being asked what it is.
+  DEVICE_STATE_IDENTIFYING = 2;
+
+  // Answering and identified, with no secure channel.
+  DEVICE_STATE_ONLINE = 3;
+
+  // A secure channel is being established.
+  DEVICE_STATE_SECURE_HANDSHAKE = 4;
+
+  // Answering over an established secure channel.
+  DEVICE_STATE_SECURE = 5;
+}
+
+// The error check appended to every frame, selected by bit 2 of the control
+// octet. SIA OSDP v2.2.2 section 5.6.
+enum CheckScheme {
+  // Default, unused. A device always states which scheme it uses.
+  CHECK_SCHEME_UNSPECIFIED = 0;
+
+  // The single-octet checksum, retained for devices too old to manage a CRC.
+  // New installations should negotiate CRC-16.
+  CHECK_SCHEME_CHECKSUM = 1;
+
+  // CRC-16/AUG-CCITT: polynomial 0x1021, initial value 0x1D0F, neither input
+  // nor output reflected.
+  CHECK_SCHEME_CRC16 = 2;
+}
+
+// The signalling rate of a bus. A device must support 9600 and negotiates
+// upward with osdp_COMSET.
+enum BaudRate {
+  // Default, unused.
+  BAUD_RATE_UNSPECIFIED = 0;
+
+  // 9600 baud, the rate every device is required to support.
+  BAUD_RATE_9600 = 1;
+
+  // 19200 baud.
+  BAUD_RATE_19200 = 2;
+
+  // 38400 baud.
+  BAUD_RATE_38400 = 3;
+
+  // 57600 baud.
+  BAUD_RATE_57600 = 4;
+
+  // 115200 baud.
+  BAUD_RATE_115200 = 5;
+
+  // 230400 baud, the highest the specification defines.
+  BAUD_RATE_230400 = 6;
+}
+
+// How far a secure channel session has progressed. SIA OSDP v2.2.2 section 7.
+enum SecureChannelState {
+  // Default, unused.
+  SECURE_CHANNEL_STATE_UNSPECIFIED = 0;
+
+  // No session. Traffic is in the clear.
+  SECURE_CHANNEL_STATE_INACTIVE = 1;
+
+  // The four-message handshake is in progress.
+  SECURE_CHANNEL_STATE_HANDSHAKE = 2;
+
+  // Established: every message is authenticated, and encrypted when the
+  // security block calls for it.
+  SECURE_CHANNEL_STATE_ESTABLISHED = 3;
+
+  // The session failed authentication and was torn down. A failed session is
+  // never resumed; the panel rebuilds it from the challenge.
+  SECURE_CHANNEL_STATE_FAILED = 4;
+}

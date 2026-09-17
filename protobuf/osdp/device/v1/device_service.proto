@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package osdp.device.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/protobuf/empty.proto";
+import "osdp/device/v1/device.proto";
+import "osdp/device/v1/device_messages.proto";
+
+option go_package = "github.com/regalium-os/osdp-go/protobuf/generated/go/device/v1/devicepbv1;devicepbv1";
+option java_multiple_files = true;
+option java_outer_classname = "DeviceServiceProto";
+option java_package = "dev.regalium.osdp.device.v1";
+
+// DeviceService manages the peripheral devices a control panel knows about.
+//
+// The service records what the panel believes; it does not drive the bus. A
+// device's state, identity and capabilities are discovered by polling and
+// arrive here as output, which is why nearly every field is OUTPUT_ONLY:
+// editing what a reader claims about itself would not change the reader.
+service DeviceService {
+  option (google.api.default_host) = "osdp.regalium.dev";
+
+  // Returns a single device.
+  rpc GetDevice(GetDeviceRequest) returns (Device) {
+    option (google.api.http) = {get: "/v1/{name=devices/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the devices this panel polls.
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse) {
+    option (google.api.http) = {get: "/v1/devices"};
+  }
+
+  // Adds a device to the panel's records, after which it is polled.
+  rpc CreateDevice(CreateDeviceRequest) returns (Device) {
+    option (google.api.http) = {
+      post: "/v1/devices"
+      body: "device"
+    };
+    option (google.api.method_signature) = "device,device_id";
+  }
+
+  // Updates a device's mutable fields.
+  rpc UpdateDevice(UpdateDeviceRequest) returns (Device) {
+    option (google.api.http) = {
+      patch: "/v1/{device.name=devices/*}"
+      body: "device"
+    };
+    option (google.api.method_signature) = "device,update_mask";
+  }
+
+  // Removes a device from the panel's records. The physical device is
+  // unaffected; it simply stops being polled.
+  rpc DeleteDevice(DeleteDeviceRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/{name=devices/*}"};
+    option (google.api.method_signature) = "name";
+  }
+}

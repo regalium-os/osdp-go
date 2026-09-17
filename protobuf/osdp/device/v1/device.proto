@@ -1,0 +1,209 @@
+syntax = "proto3";
+
+package osdp.device.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+import "osdp/device/v1/enums.proto";
+
+option go_package = "github.com/regalium-os/osdp-go/protobuf/generated/go/device/v1/devicepbv1;devicepbv1";
+option java_multiple_files = true;
+option java_outer_classname = "DeviceProto";
+option java_package = "dev.regalium.osdp.device.v1";
+
+// A Device is one peripheral device on an OSDP bus: a card reader, a keypad, a
+// door controller.
+//
+// Devices are a top-level collection rather than nested under the line they sit
+// on. A reader gets rewired, a converter gets replaced, a bus gets split in
+// two, and none of that should change the name of the thing that controls a
+// door -- which is what an access policy refers to.
+message Device {
+  option (google.api.resource) = {
+    type: "osdp.regalium.dev/Device"
+    pattern: "devices/{device}"
+    singular: "device"
+    plural: "devices"
+  };
+
+  // The device name.
+  // Format: devices/{device}
+  string name = 1 [
+    (google.api.field_behavior) = IDENTIFIER,
+    (buf.validate.field).string.pattern = "^devices/[^/]+$",
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+
+  // The address on the bus, 0 to 126. 127 is the broadcast configuration
+  // address and is not a device address.
+  //
+  // Immutable: changing a device's address is osdp_COMSET, a command sent to
+  // the device, not an edit of this record.
+  int32 address = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (buf.validate.field).int32 = {
+      gte: 0
+      lte: 126
+    }
+  ];
+
+  // Human-readable name for the line this device sits on, for example
+  // "/dev/ttyUSB0" or "panel-3:4001". Descriptive only; the transport is not
+  // configured from here.
+  string line = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // What the panel currently believes about the device.
+  DeviceState state = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What the device reported to osdp_ID. Empty until it has been identified.
+  DeviceIdentity identity = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What the device can do, after the provider has reconciled its claims.
+  Capabilities capabilities = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The error check in use on this device's frames.
+  CheckScheme check_scheme = 7 [(google.api.field_behavior) = OPTIONAL];
+
+  // How far the secure channel has progressed.
+  SecureChannelState secure_channel_state = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether the secure channel is running on SCBK-D, the default key printed
+  // in the specification.
+  //
+  // Such a session is authenticated against public knowledge, which is to say
+  // not authenticated. It exists so a panel can reach a factory-fresh reader
+  // long enough to install a real key. This field is surfaced deliberately:
+  // a deployment should be able to find every device still in that state and
+  // refuse to leave it there.
+  bool using_default_key = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The vendor provider handling this device, for example "hid" or "generic".
+  string provider = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When a well-formed reply last arrived.
+  google.protobuf.Timestamp last_seen_time = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Consecutive unanswered polls. Reset by any reply.
+  int32 missed_polls = 12 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When this device was added to the panel's records.
+  google.protobuf.Timestamp create_time = 13 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When this record last changed. Polling updates state and last_seen_time
+  // continuously, so this moves often on a healthy bus.
+  google.protobuf.Timestamp update_time = 14 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The identity a peripheral device reports to osdp_ID.
+//
+// It is the first thing a panel asks for and the basis of every vendor decision
+// that follows: vendor_code is the IEEE OUI a provider keys on.
+message DeviceIdentity {
+  // IEEE Organizationally Unique Identifier, three octets, most significant
+  // first: 0x00068E is HID Corporation.
+  //
+  // Signed because AIP-141 forbids unsigned scalars; the range is bounded by
+  // validation rather than by the type.
+  int32 vendor_code = 1 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int32 = {
+      gte: 0
+      lte: 0xFFFFFF
+    }
+  ];
+
+  // Vendor-defined model number, one octet.
+  int32 model = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int32 = {
+      gte: 0
+      lte: 0xFF
+    }
+  ];
+
+  // Vendor-defined version number, one octet.
+  int32 version = 3 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int32 = {
+      gte: 0
+      lte: 0xFF
+    }
+  ];
+
+  // Serial number, as reported by the device.
+  //
+  // int64 rather than int32: the wire field is four octets unsigned, and a
+  // serial above 2^31 would arrive here negative. Widening costs nothing and
+  // keeps every real serial representable.
+  int64 serial_number = 4 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int64 = {
+      gte: 0
+      lte: 0xFFFFFFFF
+    }
+  ];
+
+  // Firmware version, formatted "major.minor.build".
+  string firmware_version = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// What a device can do.
+//
+// These are the capabilities as reconciled by the vendor provider, not the raw
+// osdp_CAP response. Readers in the field misreport: some claim a capability
+// they do not implement, some omit one they do. reported_secure_channel keeps
+// the original claim visible so the discrepancy is auditable rather than
+// silently corrected.
+message Capabilities {
+  // Number of card readers attached to the device.
+  int32 readers = 1 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int32.gte = 0
+  ];
+
+  // Indicator LEDs the device drives.
+  int32 leds = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int32.gte = 0
+  ];
+
+  // Audible annunciators the device drives.
+  int32 buzzers = 3 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int32.gte = 0
+  ];
+
+  // Text displays the device drives.
+  int32 displays = 4 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int32.gte = 0
+  ];
+
+  // Monitored contacts, such as door position and request-to-exit.
+  int32 inputs = 5 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int32.gte = 0
+  ];
+
+  // Controlled contacts, such as a strike relay.
+  int32 outputs = 6 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int32.gte = 0
+  ];
+
+  // Whether the device supports OSDP Secure Channel, after reconciliation.
+  bool secure_channel = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What the device itself claimed. When this differs from secure_channel, a
+  // documented vendor quirk is being applied.
+  bool reported_secure_channel = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Largest frame the device accepts, in octets.
+  int32 max_message_size = 9 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (buf.validate.field).int32.gte = 0
+  ];
+}

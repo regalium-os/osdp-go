@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package osdp.event.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "osdp/event/v1/event.proto";
+import "osdp/event/v1/event_messages.proto";
+
+option go_package = "github.com/regalium-os/osdp-go/protobuf/generated/go/event/v1/eventpbv1;eventpbv1";
+option java_multiple_files = true;
+option java_outer_classname = "EventServiceProto";
+option java_package = "dev.regalium.osdp.event.v1";
+
+// EventService reads what happened on the bus.
+//
+// It is deliberately read-only. Events are written by the poll cycle as it
+// observes devices, and an access-control audit trail that a client can create
+// or amend is not evidence of anything.
+service EventService {
+  // The default host serving this API.
+  option (google.api.default_host) = "osdp.regalium.dev";
+
+  // Returns a single event.
+  rpc GetEvent(GetEventRequest) returns (Event) {
+    option (google.api.http) = {get: "/v1/{name=devices/*/events/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists events for a device, or for every device when parent names "-".
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse) {
+    option (google.api.http) = {get: "/v1/{parent=devices/*}/events"};
+    option (google.api.method_signature) = "parent";
+  }
+}

@@ -1,0 +1,49 @@
+# buffers.yaml -- the mirrored schema for the poll-cycle payloads.
+#
+# The .proto tree is the source of truth. This file derives the zero-copy
+# schemas from it rather than anyone maintaining a second copy by hand, which is
+# the whole reason drift stopped being a risk worth a bespoke checker.
+version: v1
+
+proto:
+  # A descriptor set, not the .proto tree: these protos import googleapis and
+  # protovalidate, and buf has already resolved those. Compiling from source
+  # here would mean reimplementing that resolution.
+  #
+  # The set is deliberately narrow -- it is built with
+  # `--path protobuf/osdp/event/v1/payloads.proto` -- so the mirror covers the
+  # high-frequency payloads and the enums they need, and nothing else. The
+  # low-rate configuration surface stays protobuf only, where a few hundred
+  # nanoseconds of parsing never mattered.
+  descriptor_set: protobuf/generated/payloads.descriptor.binpb
+
+out: protobuf/generated
+
+# The ordinal ledger, committed and checked in CI by `buffers verify`.
+#
+# It records the target slot every field was assigned. A slot is a wire format:
+# a consumer compiled when a field sat at ordinal 5 reads slot 5 forever, and
+# none of these formats reports it when a rebuild puts something else there.
+# This is the failure the hand-written drift checker was built to catch, and
+# the ledger catches it earlier and more precisely.
+lock: buffers.lock
+
+# A moved ordinal is an error, not a warning. These schemas have a consumer the
+# moment a panel ships.
+strict: ordinal:error
+
+generate:
+  # Cap'n Proto: the better Go story of the two, and the one to reach for if
+  # profiling ever says the poll path needs zero-copy.
+  - target: capnp
+    languages: [go]
+    lang_out: capnp
+    go_module: github.com/regalium-os/osdp-go/protobuf/generated/capnp/go
+
+  # FlatBuffers, kept because it is the interchange format the embedded side of
+  # this industry actually speaks. Generated from the same source, so carrying
+  # both costs a build step rather than a maintenance burden.
+  - target: flatbuffers
+    languages: [go]
+    lang_out: flatbuffers
+    go_module: github.com/regalium-os/osdp-go/protobuf/generated/flatbuffers/go
