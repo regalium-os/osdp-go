@@ -62,27 +62,6 @@ message KeypadEntry {
   bytes keys = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
 }
 
-// Which contact a status change refers to.
-enum StatusKind {
-  // Default, unused.
-  STATUS_KIND_UNSPECIFIED = 0;
-
-  // A monitored input, such as door position or request-to-exit.
-  STATUS_KIND_INPUT = 1;
-
-  // A controlled output, such as a strike relay.
-  STATUS_KIND_OUTPUT = 2;
-
-  // The device's tamper switch.
-  STATUS_KIND_TAMPER = 3;
-
-  // The device's power supply.
-  STATUS_KIND_POWER = 4;
-
-  // The reader's local status, as reported by osdp_LSTATR.
-  STATUS_KIND_LOCAL = 5;
-}
-
 // A monitored or controlled contact changed.
 message StatusChange {
   // Which kind of contact changed.
@@ -117,4 +96,25 @@ message ManufacturerEvent {
   // passed through rather than discarded: an integrator with vendor
   // documentation can act on what this library cannot.
   bool recognized = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// Which contact a status change refers to.
+enum StatusKind {
+  // Default, unused.
+  STATUS_KIND_UNSPECIFIED = 0;
+
+  // A monitored input, such as door position or request-to-exit.
+  STATUS_KIND_INPUT = 1;
+
+  // A controlled output, such as a strike relay.
+  STATUS_KIND_OUTPUT = 2;
+
+  // The device's tamper switch.
+  STATUS_KIND_TAMPER = 3;
+
+  // The device's power supply.
+  STATUS_KIND_POWER = 4;
+
+  // The reader's local status, as reported by osdp_LSTATR.
+  STATUS_KIND_LOCAL = 5;
 }
