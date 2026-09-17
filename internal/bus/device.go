@@ -83,6 +83,10 @@ type Device struct {
 	// more than one outstanding.
 	pending *secureStep
 
+	// status is the last state reported for each kind of contact, which is
+	// what turns a report into a change. See statusChanges.
+	status map[cmd.StatusKind]*contacts
+
 	// outbox holds commands the application has asked to be sent to this
 	// device, oldest first.
 	//

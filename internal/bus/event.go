@@ -36,6 +36,10 @@ const (
 	// event carries whether it runs on the specification's default key, which
 	// a deployment should refuse to leave in place.
 	KindSecure
+	// KindStatusChange carries contacts whose state moved: a door opened, a
+	// tamper switch tripped, a strike energised. Only what changed is
+	// reported; see Device.statusChanges for what the first report does.
+	KindStatusChange
 	// KindSecureFailed means the secure channel could not be established, or
 	// an established one failed authentication and was torn down.
 	//
@@ -78,6 +82,10 @@ type Event struct {
 	// Caps is valid when Kind is KindCapabilities: the report as the device
 	// sent it, before any vendor reconciliation.
 	Caps cmd.CapabilityReport
+
+	// Status is valid when Kind is KindStatusChange: the contacts that moved,
+	// never an empty slice. A report in which nothing moved is not an event.
+	Status []cmd.StatusChange
 
 	// DefaultKey is valid when Kind is KindSecure. True means the session is
 	// running on SCBK-D and the line has no confidentiality worth the name.
@@ -132,6 +140,8 @@ func (k Kind) String() string {
 		return "capabilities"
 	case KindSecure:
 		return "secure"
+	case KindStatusChange:
+		return "status_change"
 	case KindSecureFailed:
 		return "secure_failed"
 	default:

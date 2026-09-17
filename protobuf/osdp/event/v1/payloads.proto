@@ -115,6 +115,8 @@ enum StatusKind {
   // The device's power supply.
   STATUS_KIND_POWER = 4;
 
-  // The reader's local status, as reported by osdp_LSTATR.
+  // A reader head's own status, as reported by osdp_RSTATR: whether it is
+  // connected and untampered. Distinct from STATUS_KIND_TAMPER, which is the
+  // tamper switch of the device the head is attached to.
   STATUS_KIND_LOCAL = 5;
 }

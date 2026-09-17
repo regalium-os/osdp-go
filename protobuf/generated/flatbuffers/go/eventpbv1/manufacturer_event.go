@@ -6,11 +6,11 @@ import (
 	flatbuffers "github.com/google/flatbuffers/go"
 )
 
-// / A vendor-defined message. osdp_MFG.
-// /
-// / The body is opaque here on purpose. Interpreting it is what a vendor provider
-// / is for, and decoding it in the shared schema is how a protocol library
-// / acquires a per-vendor fork of its own parser.
+/// A vendor-defined message. osdp_MFG.
+///
+/// The body is opaque here on purpose. Interpreting it is what a vendor provider
+/// is for, and decoding it in the shared schema is how a protocol library
+/// acquires a per-vendor fork of its own parser.
 type ManufacturerEvent struct {
 	_tab flatbuffers.Table
 }
@@ -46,7 +46,7 @@ func (rcv *ManufacturerEvent) Table() flatbuffers.Table {
 	return rcv._tab
 }
 
-// / The IEEE OUI that defined the message.
+/// The IEEE OUI that defined the message.
 func (rcv *ManufacturerEvent) Oui() int32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
 	if o != 0 {
@@ -55,13 +55,13 @@ func (rcv *ManufacturerEvent) Oui() int32 {
 	return 0
 }
 
-// / The IEEE OUI that defined the message.
+/// The IEEE OUI that defined the message.
 func (rcv *ManufacturerEvent) MutateOui(n int32) bool {
 	return rcv._tab.MutateInt32Slot(4, n)
 }
 
-// / What the vendor's provider made of the message, in that provider's own
-// / vocabulary. Empty when no provider recognised it.
+/// What the vendor's provider made of the message, in that provider's own
+/// vocabulary. Empty when no provider recognised it.
 func (rcv *ManufacturerEvent) Kind() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
@@ -70,10 +70,10 @@ func (rcv *ManufacturerEvent) Kind() []byte {
 	return nil
 }
 
-// / What the vendor's provider made of the message, in that provider's own
-// / vocabulary. Empty when no provider recognised it.
-// / The vendor-defined remainder, decoded if the provider recognised it and
-// / verbatim otherwise.
+/// What the vendor's provider made of the message, in that provider's own
+/// vocabulary. Empty when no provider recognised it.
+/// The vendor-defined remainder, decoded if the provider recognised it and
+/// verbatim otherwise.
 func (rcv *ManufacturerEvent) Body(j int) byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
@@ -99,8 +99,8 @@ func (rcv *ManufacturerEvent) BodyBytes() []byte {
 	return nil
 }
 
-// / The vendor-defined remainder, decoded if the provider recognised it and
-// / verbatim otherwise.
+/// The vendor-defined remainder, decoded if the provider recognised it and
+/// verbatim otherwise.
 func (rcv *ManufacturerEvent) MutateBody(j int, n byte) bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
@@ -110,9 +110,9 @@ func (rcv *ManufacturerEvent) MutateBody(j int, n byte) bool {
 	return false
 }
 
-// / Whether a provider understood the message. An unrecognised extension is
-// / passed through rather than discarded: an integrator with vendor
-// / documentation can act on what this library cannot.
+/// Whether a provider understood the message. An unrecognised extension is
+/// passed through rather than discarded: an integrator with vendor
+/// documentation can act on what this library cannot.
 func (rcv *ManufacturerEvent) Recognized() bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
@@ -121,9 +121,9 @@ func (rcv *ManufacturerEvent) Recognized() bool {
 	return false
 }
 
-// / Whether a provider understood the message. An unrecognised extension is
-// / passed through rather than discarded: an integrator with vendor
-// / documentation can act on what this library cannot.
+/// Whether a provider understood the message. An unrecognised extension is
+/// passed through rather than discarded: an integrator with vendor
+/// documentation can act on what this library cannot.
 func (rcv *ManufacturerEvent) MutateRecognized(n bool) bool {
 	return rcv._tab.MutateBoolSlot(10, n)
 }

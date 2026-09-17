@@ -303,6 +303,30 @@ err := p.Run(ctx) // nil when ctx is cancelled
 single octet reaching a line. `Run` owns everything it starts and nothing
 outlives it. `Close` is idempotent and safe after a failed `Run`.
 
+### Watching a door
+
+A card reader that cannot tell you the door is standing open is a card reader,
+not an access-control system. Devices report contact state in answer to an
+ordinary poll, and the bus turns reports into **changes**:
+
+```go
+case osdp.EventStatusChange:
+    for _, c := range event.Status {
+        switch c.Kind {
+        case osdp.StatusInput:  // door position, request-to-exit
+        case osdp.StatusTamper: // the reader has been pulled off the wall
+        case osdp.StatusPower:  // running on backup, and about to go quiet
+        }
+    }
+```
+
+A door that has been shut for a week is not an event; reporting it as one buries
+the door that just opened. So only transitions are reported — with one
+exception. The **first** report from a device is returned whole, because a panel
+coming up to a door that is already standing open has nothing to compare
+against, and a contact that was abnormal at boot would otherwise stay invisible
+until somebody closed it.
+
 ### Acting on a device
 
 Polling is only half a panel. `Send` queues a command for the next time the

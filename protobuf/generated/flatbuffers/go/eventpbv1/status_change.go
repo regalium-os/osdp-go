@@ -6,7 +6,7 @@ import (
 	flatbuffers "github.com/google/flatbuffers/go"
 )
 
-// / A monitored or controlled contact changed.
+/// A monitored or controlled contact changed.
 type StatusChange struct {
 	_tab flatbuffers.Table
 }
@@ -42,7 +42,7 @@ func (rcv *StatusChange) Table() flatbuffers.Table {
 	return rcv._tab
 }
 
-// / Which kind of contact changed.
+/// Which kind of contact changed.
 func (rcv *StatusChange) Kind() StatusKind {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
 	if o != 0 {
@@ -51,12 +51,12 @@ func (rcv *StatusChange) Kind() StatusKind {
 	return 0
 }
 
-// / Which kind of contact changed.
+/// Which kind of contact changed.
 func (rcv *StatusChange) MutateKind(n StatusKind) bool {
 	return rcv._tab.MutateInt32Slot(4, int32(n))
 }
 
-// / Which contact of that kind, zero-based.
+/// Which contact of that kind, zero-based.
 func (rcv *StatusChange) Index() int32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
@@ -65,13 +65,13 @@ func (rcv *StatusChange) Index() int32 {
 	return 0
 }
 
-// / Which contact of that kind, zero-based.
+/// Which contact of that kind, zero-based.
 func (rcv *StatusChange) MutateIndex(n int32) bool {
 	return rcv._tab.MutateInt32Slot(6, n)
 }
 
-// / The new state: true is active, meaning a contact closed, a tamper
-// / triggered, or an output energised.
+/// The new state: true is active, meaning a contact closed, a tamper
+/// triggered, or an output energised.
 func (rcv *StatusChange) Active() bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
@@ -80,8 +80,8 @@ func (rcv *StatusChange) Active() bool {
 	return false
 }
 
-// / The new state: true is active, meaning a contact closed, a tamper
-// / triggered, or an output energised.
+/// The new state: true is active, meaning a contact closed, a tamper
+/// triggered, or an output energised.
 func (rcv *StatusChange) MutateActive(n bool) bool {
 	return rcv._tab.MutateBoolSlot(8, n)
 }

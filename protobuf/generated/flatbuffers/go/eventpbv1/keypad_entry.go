@@ -6,7 +6,7 @@ import (
 	flatbuffers "github.com/google/flatbuffers/go"
 )
 
-// / Digits entered at a keypad. osdp_KEYPAD.
+/// Digits entered at a keypad. osdp_KEYPAD.
 type KeypadEntry struct {
 	_tab flatbuffers.Table
 }
@@ -42,7 +42,7 @@ func (rcv *KeypadEntry) Table() flatbuffers.Table {
 	return rcv._tab
 }
 
-// / Which reader on the device the keypad belongs to.
+/// Which reader on the device the keypad belongs to.
 func (rcv *KeypadEntry) Reader() int32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
 	if o != 0 {
@@ -51,15 +51,15 @@ func (rcv *KeypadEntry) Reader() int32 {
 	return 0
 }
 
-// / Which reader on the device the keypad belongs to.
+/// Which reader on the device the keypad belongs to.
 func (rcv *KeypadEntry) MutateReader(n int32) bool {
 	return rcv._tab.MutateInt32Slot(4, n)
 }
 
-// / The raw key codes.
-// /
-// / Like a credential, this is personal data: it is frequently a PIN. The same
-// / handling rules apply.
+/// The raw key codes.
+///
+/// Like a credential, this is personal data: it is frequently a PIN. The same
+/// handling rules apply.
 func (rcv *KeypadEntry) Keys(j int) byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
@@ -85,10 +85,10 @@ func (rcv *KeypadEntry) KeysBytes() []byte {
 	return nil
 }
 
-// / The raw key codes.
-// /
-// / Like a credential, this is personal data: it is frequently a PIN. The same
-// / handling rules apply.
+/// The raw key codes.
+///
+/// Like a credential, this is personal data: it is frequently a PIN. The same
+/// handling rules apply.
 func (rcv *KeypadEntry) MutateKeys(j int, n byte) bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {

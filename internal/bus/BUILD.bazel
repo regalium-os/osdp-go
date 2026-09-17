@@ -16,6 +16,7 @@ go_library(
         "seal.go",
         "secure.go",
         "session.go",
+        "status.go",
     ],
     importpath = "github.com/regalium-os/osdp-go/internal/bus",
     visibility = ["//:__subpackages__"],
@@ -47,6 +48,7 @@ go_test(
         "secure_failure_test.go",
         "secure_policy_test.go",
         "secure_test.go",
+        "status_test.go",
     ],
     embed = [":bus"],
     deps = [

@@ -12,7 +12,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// FromEvent converts a runtime event into the domain record of it.
+// FromEvent converts a runtime event into the domain records of it.
+//
+// It returns a slice because one observation is not always one record. A status
+// reply in which three contacts moved is three things that happened, and the
+// schema's Event carries one payload; flattening them into a single row would
+// lose which contact did what. Every other kind produces exactly one record.
 //
 // name is the event's resource name, which the caller allocates because only it
 // knows the identity scheme: the schema's pattern is
@@ -34,7 +39,7 @@ import (
 // Card data and keypad digits are omitted unless WithCredentials is given. The
 // format and the bit count are always recorded, because they identify the
 // credential technology without identifying the holder.
-func FromEvent(ev osdp.Event, name string, at time.Time, opts ...Option) (*eventpbv1.Event, error) {
+func FromEvent(ev osdp.Event, name string, at time.Time, opts ...Option) ([]*eventpbv1.Event, error) {
 	kind, err := KindOf(ev.Kind)
 	if err != nil {
 		return nil, err
@@ -48,20 +53,48 @@ func FromEvent(ev osdp.Event, name string, at time.Time, opts ...Option) (*event
 		opt(&cfg)
 	}
 
-	state, secure := ev.Device.SecureSession()
-	out := &eventpbv1.Event{
-		Name:      name,
-		Kind:      kind,
-		EventTime: timestamppb.New(at),
+	state, established := ev.Device.SecureSession()
+	base := func() *eventpbv1.Event {
+		return &eventpbv1.Event{
+			Name:      name,
+			Kind:      kind,
+			EventTime: timestamppb.New(at),
 
-		// Authenticated, not merely attempted: a session mid-handshake has
-		// proved nothing yet, and recording it as secure would overstate what
-		// this evidence is worth.
-		Secure: secure && state == osdp.SecureEstablished,
+			// Authenticated, not merely attempted: a session mid-handshake has
+			// proved nothing yet, and recording it as secure would overstate
+			// what this evidence is worth.
+			Secure: established && state == osdp.SecureEstablished,
+		}
 	}
 
+	if ev.Kind == osdp.EventStatusChange {
+		return statusRecords(ev, base), nil
+	}
+
+	out := base()
 	attachPayload(out, ev, cfg)
-	return out, nil
+	return []*eventpbv1.Event{out}, nil
+}
+
+// statusRecords makes one record per contact that moved.
+//
+// They share a name, which is the caller's to make unique if its storage
+// requires it -- the runtime learned of them in one exchange, and nothing in
+// the protocol distinguishes them further than the contact they name.
+func statusRecords(ev osdp.Event, base func() *eventpbv1.Event) []*eventpbv1.Event {
+	out := make([]*eventpbv1.Event, 0, len(ev.Status))
+	for _, c := range ev.Status {
+		rec := base()
+		rec.Payload = &eventpbv1.Event_StatusChange{
+			StatusChange: &eventpbv1.StatusChange{
+				Kind:   statusKinds[c.Kind],
+				Index:  int32(c.Index),
+				Active: c.Active,
+			},
+		}
+		out = append(out, rec)
+	}
+	return out
 }
 
 // attachPayload sets the one payload field the kind selects.

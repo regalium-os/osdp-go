@@ -27,6 +27,7 @@ var kinds = map[osdp.EventKind]eventpbv1.EventKind{
 	osdp.EventResync:       eventpbv1.EventKind_EVENT_KIND_RESYNC,
 	osdp.EventManufacturer: eventpbv1.EventKind_EVENT_KIND_MANUFACTURER,
 	osdp.EventSecureFailed: eventpbv1.EventKind_EVENT_KIND_SECURITY_VIOLATION,
+	osdp.EventStatusChange: eventpbv1.EventKind_EVENT_KIND_STATUS_CHANGE,
 }
 
 // ErrNotRecordable reports an event the schema has no kind for.
@@ -56,9 +57,16 @@ func KindOf(kind osdp.EventKind) (eventpbv1.EventKind, error) {
 	return k, nil
 }
 
-// StatusChange is not in the table above because the runtime does not yet
-// report one: osdp_ISTATR, osdp_OSTATR and osdp_LSTATR are decoded by no part
-// of the poll cycle. The schema kind exists and is unused, which is the honest
-// state of it -- when the bus learns to report a contact change, this is where
-// it joins.
-var _ = eventpbv1.EventKind_EVENT_KIND_STATUS_CHANGE
+// statusKinds maps a runtime contact kind to the schema's.
+//
+// The two enumerations are kept numerically equal on purpose, but they are
+// converted rather than cast: equal today is not a guarantee, and a silent
+// off-by-one between "tamper" and "power" is the kind of mistake that only
+// surfaces in an incident review.
+var statusKinds = map[osdp.StatusKind]eventpbv1.StatusKind{
+	osdp.StatusInput:  eventpbv1.StatusKind_STATUS_KIND_INPUT,
+	osdp.StatusOutput: eventpbv1.StatusKind_STATUS_KIND_OUTPUT,
+	osdp.StatusTamper: eventpbv1.StatusKind_STATUS_KIND_TAMPER,
+	osdp.StatusPower:  eventpbv1.StatusKind_STATUS_KIND_POWER,
+	osdp.StatusLocal:  eventpbv1.StatusKind_STATUS_KIND_LOCAL,
+}

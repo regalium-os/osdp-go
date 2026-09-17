@@ -13,6 +13,20 @@ import (
 	"github.com/regalium-os/osdp-go/protobuf/record"
 )
 
+// one converts an event expected to produce exactly one record.
+func one(t *testing.T, ev osdp.Event, opts ...record.Option) *eventpbv1.Event {
+	t.Helper()
+
+	got, err := record.FromEvent(ev, "devices/1/events/1", time.Now(), opts...)
+	if err != nil {
+		t.Fatalf("FromEvent: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("produced %d records, want exactly one", len(got))
+	}
+	return got[0]
+}
+
 // credential is a 26-bit Wiegand card number, the commonest thing on a bus and
 // the thing that must not leave the panel by accident.
 var credential = []byte{0xAB, 0xCD, 0xEF, 0x80}
@@ -32,12 +46,7 @@ func cardEvent() osdp.Event {
 // this package. A record leaves the panel: over a network, into a database,
 // into a backup, and into whatever reads that backup in five years.
 func TestACredentialIsNotRecordedUnlessAsked(t *testing.T) {
-	got, err := record.FromEvent(cardEvent(), "devices/1/events/1", time.Now())
-	if err != nil {
-		t.Fatalf("FromEvent: %v", err)
-	}
-
-	card := got.GetCardRead()
+	card := one(t, cardEvent()).GetCardRead()
 	if card == nil {
 		t.Fatal("a card read recorded no card payload at all")
 	}
@@ -55,12 +64,7 @@ func TestACredentialIsNotRecordedUnlessAsked(t *testing.T) {
 // TestCredentialsAreRecordedWhenAskedFor: a panel deciding access centrally has
 // to send the number somewhere, and for those this is correct.
 func TestCredentialsAreRecordedWhenAskedFor(t *testing.T) {
-	got, err := record.FromEvent(cardEvent(), "devices/1/events/1", time.Now(),
-		record.WithCredentials())
-	if err != nil {
-		t.Fatalf("FromEvent: %v", err)
-	}
-
+	got := one(t, cardEvent(), record.WithCredentials())
 	if want := credential; string(got.GetCardRead().GetData()) != string(want) {
 		t.Errorf("data = % X, want % X", got.GetCardRead().GetData(), want)
 	}
@@ -73,11 +77,7 @@ func TestTheRecordDoesNotAliasTheEvent(t *testing.T) {
 	ev := cardEvent()
 	ev.Card.Data = append([]byte(nil), credential...)
 
-	got, err := record.FromEvent(ev, "devices/1/events/1", time.Now(),
-		record.WithCredentials())
-	if err != nil {
-		t.Fatalf("FromEvent: %v", err)
-	}
+	got := one(t, ev, record.WithCredentials())
 
 	ev.Card.Data[0] = 0x00 // the next poll cycle overwrites the buffer
 	if got.GetCardRead().GetData()[0] != 0xAB {
@@ -112,10 +112,7 @@ func TestARefusalRecordsWhatTheDeviceSaid(t *testing.T) {
 		NAK:    osdp.NAKReason(0x05), // secure channel required
 	}
 
-	got, err := record.FromEvent(ev, "", time.Now())
-	if err != nil {
-		t.Fatalf("FromEvent: %v", err)
-	}
+	got := one(t, ev)
 	if got.GetKind() != eventpbv1.EventKind_EVENT_KIND_COMMAND_REFUSED {
 		t.Errorf("kind = %v, want command refused", got.GetKind())
 	}
@@ -137,11 +134,7 @@ func TestARefusalRecordsWhatTheDeviceSaid(t *testing.T) {
 // that a device with no session is never recorded as secure -- the direction
 // that would overstate the evidence.
 func TestAnUnauthenticatedExchangeIsRecordedAsSuch(t *testing.T) {
-	got, err := record.FromEvent(cardEvent(), "", time.Now())
-	if err != nil {
-		t.Fatalf("FromEvent: %v", err)
-	}
-	if got.GetSecure() {
+	if one(t, cardEvent()).GetSecure() {
 		t.Error("a device with no secure session was recorded as secure")
 	}
 }
@@ -151,5 +144,76 @@ func TestAnUnauthenticatedExchangeIsRecordedAsSuch(t *testing.T) {
 func TestADeviceIsRequired(t *testing.T) {
 	if _, err := record.FromEvent(osdp.Event{Kind: osdp.EventOffline}, "", time.Now()); err == nil {
 		t.Error("an event with no device was converted")
+	}
+}
+
+// TestAStatusReplyBecomesOneRecordPerContact.
+//
+// Three contacts moving is three things that happened. The schema's Event
+// carries one payload, so flattening them into a single row would lose which
+// contact did what -- and "something on this device changed" is not an audit
+// trail anybody can act on.
+func TestAStatusReplyBecomesOneRecordPerContact(t *testing.T) {
+	ev := osdp.Event{
+		Kind:   osdp.EventStatusChange,
+		Device: &osdp.Device{Address: 0x00},
+		Status: []osdp.StatusChange{
+			{Kind: osdp.StatusInput, Index: 2, Active: true},
+			{Kind: osdp.StatusTamper, Index: 0, Active: true},
+			{Kind: osdp.StatusOutput, Index: 1, Active: false},
+		},
+	}
+
+	got, err := record.FromEvent(ev, "devices/1/events/1", time.Now())
+	if err != nil {
+		t.Fatalf("FromEvent: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("produced %d records, want one per contact that moved", len(got))
+	}
+
+	for _, rec := range got {
+		if rec.GetKind() != eventpbv1.EventKind_EVENT_KIND_STATUS_CHANGE {
+			t.Errorf("kind = %v, want status change", rec.GetKind())
+		}
+	}
+
+	// The tamper is the one that must survive intact: a reader torn off a wall
+	// is the report nobody should be able to miss.
+	tamper := got[1].GetStatusChange()
+	if tamper.GetKind() != eventpbv1.StatusKind_STATUS_KIND_TAMPER || !tamper.GetActive() {
+		t.Errorf("tamper record = %+v, want an active tamper", tamper)
+	}
+
+	if input := got[0].GetStatusChange(); input.GetIndex() != 2 || !input.GetActive() {
+		t.Errorf("input record = %+v, want input 2 active", input)
+	}
+}
+
+// TestTheTwoStatusEnumerationsAgree. They are numerically equal today, and
+// converted rather than cast because equal today is not a guarantee -- a silent
+// off-by-one between "tamper" and "power" surfaces only in an incident review.
+func TestTheTwoStatusEnumerationsAgree(t *testing.T) {
+	for _, tc := range []struct {
+		runtime osdp.StatusKind
+		schema  eventpbv1.StatusKind
+	}{
+		{osdp.StatusInput, eventpbv1.StatusKind_STATUS_KIND_INPUT},
+		{osdp.StatusOutput, eventpbv1.StatusKind_STATUS_KIND_OUTPUT},
+		{osdp.StatusTamper, eventpbv1.StatusKind_STATUS_KIND_TAMPER},
+		{osdp.StatusPower, eventpbv1.StatusKind_STATUS_KIND_POWER},
+		{osdp.StatusLocal, eventpbv1.StatusKind_STATUS_KIND_LOCAL},
+	} {
+		ev := osdp.Event{
+			Kind:   osdp.EventStatusChange,
+			Device: &osdp.Device{},
+			Status: []osdp.StatusChange{{Kind: tc.runtime, Active: true}},
+		}
+		got := one(t, ev)
+
+		if got.GetStatusChange().GetKind() != tc.schema {
+			t.Errorf("%v recorded as %v, want %v",
+				tc.runtime, got.GetStatusChange().GetKind(), tc.schema)
+		}
 	}
 }

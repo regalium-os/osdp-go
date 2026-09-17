@@ -108,6 +108,18 @@ func (b *Bus) dispatch(ctx context.Context, d *Device, msg cmd.Message) (Event, 
 		}
 		return b.event(ctx, Event{Kind: KindOnline, Device: d, Caps: report}), nil
 
+	case cmd.IStatR:
+		return b.onStatus(ctx, d, cmd.ParseInputStatus, msg.Data)
+
+	case cmd.OStatR:
+		return b.onStatus(ctx, d, cmd.ParseOutputStatus, msg.Data)
+
+	case cmd.LStatR:
+		return b.onStatus(ctx, d, cmd.ParseLocalStatus, msg.Data)
+
+	case cmd.RStatR:
+		return b.onStatus(ctx, d, cmd.ParseReaderStatus, msg.Data)
+
 	case cmd.CCrypt:
 		return b.onCryptogram(ctx, d, msg.Data)
 

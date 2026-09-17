@@ -15,6 +15,7 @@ go_library(
         "names.go",
         "output.go",
         "payloads.go",
+        "status.go",
     ],
     importpath = "github.com/regalium-os/osdp-go/internal/cmd",
     visibility = ["//:__subpackages__"],

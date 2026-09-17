@@ -55,7 +55,9 @@ const (
 	StatusKind_STATUS_KIND_TAMPER StatusKind = 3
 	// The device's power supply.
 	StatusKind_STATUS_KIND_POWER StatusKind = 4
-	// The reader's local status, as reported by osdp_LSTATR.
+	// A reader head's own status, as reported by osdp_RSTATR: whether it is
+	// connected and untampered. Distinct from STATUS_KIND_TAMPER, which is the
+	// tamper switch of the device the head is attached to.
 	StatusKind_STATUS_KIND_LOCAL StatusKind = 5
 )
 
