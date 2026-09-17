@@ -40,6 +40,14 @@ const (
 	// tamper switch tripped, a strike energised. Only what changed is
 	// reported; see Device.statusChanges for what the first report does.
 	KindStatusChange
+	// KindKeyInstalled means a device accepted a new Secure Channel base key.
+	//
+	// Persist it: the bus is already using it, but a later run of this process
+	// starts from whatever the application's keyring says, and a device whose
+	// key nobody wrote down is a device nobody can talk to. Event.DefaultKey
+	// reports whether the key just installed is SCBK-D, which would be moving
+	// a device backwards.
+	KindKeyInstalled
 	// KindSecureFailed means the secure channel could not be established, or
 	// an established one failed authentication and was torn down.
 	//
@@ -142,6 +150,8 @@ func (k Kind) String() string {
 		return "secure"
 	case KindStatusChange:
 		return "status_change"
+	case KindKeyInstalled:
+		return "key_installed"
 	case KindSecureFailed:
 		return "secure_failed"
 	default:

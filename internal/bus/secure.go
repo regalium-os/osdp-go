@@ -48,7 +48,7 @@ func (b *Bus) afterCapabilities(d *Device) {
 		return
 	}
 
-	key, ok := b.keys(d.Address)
+	key, ok := d.baseKey(b.keys)
 	if !ok {
 		d.secureDeclined = true
 		return

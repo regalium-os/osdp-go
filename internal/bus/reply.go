@@ -45,11 +45,10 @@ func (b *Bus) Reply(ctx context.Context, d *Device, f frame.Frame, now time.Time
 		return Event{}, ErrWrongAddress
 	}
 
+	// Something transmitted from that address, which is enough to count the
+	// device as alive. Whether it was the device, and whether it was answering
+	// what we sent, is decided below.
 	d.LastSeen, d.misses = now, 0
-
-	// The device answered, so whatever was sent to it arrived. What the answer
-	// means is decided below; that it came at all is what releases the command.
-	d.delivered()
 
 	// Sequence zero from a device means it has lost synchronisation: it is
 	// asking to start over rather than refusing. Honour that immediately --
@@ -74,6 +73,13 @@ func (b *Bus) Reply(ctx context.Context, d *Device, f frame.Frame, now time.Time
 		}
 		f.Data = payload
 	}
+
+	// Only now is the reply attributable to this exchange. A frame that failed
+	// its MAC was produced by something on the line rather than by the device
+	// we addressed, and releasing the command on the strength of it would
+	// discard a command nothing has acted on -- the resync above puts it back
+	// on the queue precisely because it is still owed.
+	d.delivered()
 
 	msg, err := cmd.Decode(ctx, f)
 	if err != nil {
@@ -149,6 +155,9 @@ func (b *Bus) dispatch(ctx context.Context, d *Device, msg cmd.Message) (Event, 
 		if err != nil {
 			return Event{}, err
 		}
+		// A refused key leaves the device on the one it had, so the channel it
+		// refused over is still good. Discard the key and keep the session.
+		b.keySetRefused(d)
 		return b.event(ctx, Event{Kind: KindNAK, Device: d, NAK: reason}), nil
 
 	case cmd.MFGReply:
@@ -158,9 +167,21 @@ func (b *Bus) dispatch(ctx context.Context, d *Device, msg cmd.Message) (Event, 
 		}
 		return b.event(ctx, Event{Kind: KindManufacturer, Device: d, Manufacturer: mfg}), nil
 
+	case cmd.ACK:
+		// An acknowledgement means whatever was sent was accepted. Only one
+		// command changes what the bus must do next.
+		if d.awaitingKeySet() {
+			return b.onKeyInstalled(ctx, d)
+		}
+		if wasOffline {
+			d.State = Identifying
+			return b.event(ctx, Event{Kind: KindOnline, Device: d}), nil
+		}
+		return b.event(ctx, Event{Kind: KindNone, Device: d}), nil
+
 	default:
-		// osdp_ACK and everything else: the device is answering, which is all
-		// a poll needs to establish.
+		// Everything else: the device is answering, which is all a poll needs
+		// to establish.
 		if wasOffline {
 			d.State = Identifying
 			return b.event(ctx, Event{Kind: KindOnline, Device: d}), nil

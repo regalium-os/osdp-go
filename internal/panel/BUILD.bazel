@@ -20,6 +20,7 @@ go_library(
         "//internal/bus",
         "//internal/cmd",
         "//internal/frame",
+        "//internal/secure",
         "//internal/transport",
         "//telemetry",
     ],
@@ -44,6 +45,7 @@ go_test(
         "//internal/cmd",
         "//internal/driver",
         "//internal/frame",
+        "//internal/secure",
         "//internal/transport",
     ],
 )

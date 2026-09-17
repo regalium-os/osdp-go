@@ -183,9 +183,39 @@ rather than sent a challenge it can only refuse, once per cycle, forever.
 reason time is: the core computes and does not act. It is also what lets a whole
 handshake replay deterministically in a test.
 
-> **Commissioning.** `osdp_KEYSET` is not implemented, so a device cannot yet be
-> moved off SCBK-D by this library. `osdp.DefaultBaseKey` will reach a
-> factory-fresh reader; something else has to install the site key.
+### Commissioning
+
+A factory-fresh reader answers to SCBK-D, the default key printed in the
+specification — a channel built on it is authenticated against public knowledge,
+which is to say not authenticated at all. It exists so a panel can reach the
+device long enough to replace it:
+
+```go
+case osdp.EventSecure:
+    if event.DefaultKey {
+        panel.InstallKey(ctx, event.Device.Address, siteKey)
+    }
+
+case osdp.EventKeyInstalled:
+    keyring.Persist(event.Device.Address, siteKey) // see below
+```
+
+**The key never travels in the clear.** `osdp_KEYSET` carries the key as its
+payload, so an unencrypted line would publish the site key to anyone with a pair
+of probes — and no error returned afterwards takes that back. `InstallKey`
+refuses without an established Secure Channel, and refuses *again* before the
+frame goes out in case the channel dropped in between. A key queued while the
+channel was good and stranded when it failed waits rather than travelling.
+
+On acknowledgement the session is torn down — it was derived from the key the
+device has just replaced — and rebuilt on the new one.
+
+**Persist the key when `EventKeyInstalled` arrives.** The bus adopts it
+immediately, without waiting for the application, because the next handshake can
+begin microseconds after the acknowledgement and no consumer can win that race.
+The event is what makes the change durable: a later run of the process starts
+from whatever the keyring says, and a device whose key nobody wrote down is a
+device nobody can talk to.
 
 ## Vendors
 
@@ -237,12 +267,11 @@ was written down at the time.
 | --- | --- |
 | Framing — CRC-16 / checksum, mark octets, security blocks | complete, byte-exact round trip |
 | Poll cycle — enrolment, online/offline, resync, retransmission | complete |
-| Secure Channel — handshake, authenticated and encrypted traffic | complete, **except key install** |
+| Secure Channel — handshake, authenticated and encrypted traffic, key install | complete |
 | Commands — output, LED, buzzer, text, status requests | complete |
 | Events — card, keypad, status, NAK, vendor, lifecycle | complete |
 | Capability negotiation and vendor quirks | complete |
 | Transports — TCP, in-memory pipe | **no serial/RS-485 driver yet** |
-| `osdp_KEYSET` — move a device off the default key | not implemented |
 | `osdp_COMSET` — change baud rate or address | not implemented |
 | `osdp_BUSY` — a device asking you to retry | **read as success; known bug** |
 | File transfer, biometrics, PIV | not implemented |

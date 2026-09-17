@@ -68,3 +68,40 @@ func TestAnUnansweredCommandIsRetried(t *testing.T) {
 			code.Name(false))
 	}
 }
+
+// TestACommandSurvivesAFailedAuthentication.
+//
+// A frame that fails its MAC was produced by something on the line rather than
+// by the device that was addressed. Treating it as a reply would release a
+// command nothing has acted on -- and the command most likely to be in flight
+// when somebody is interfering with the line is the one worth interfering with.
+func TestACommandSurvivesAFailedAuthentication(t *testing.T) {
+	ctx := context.Background()
+	b := secureBus(siteKey, true)
+	d := b.Devices()[0]
+	pd := newPeripheral(siteKey)
+	establish(t, b, d, pd)
+
+	b.Send(d, doorRelease())
+
+	step, _ := b.Next(ctx)
+	if cmd.Code(step.Frame.Code) != cmd.Out {
+		t.Fatalf("sent %s, want the release", cmd.Code(step.Frame.Code).Name(false))
+	}
+
+	answer := pd.answer(t, ctx, step.Frame)
+	answer.Data[len(answer.Data)-1] ^= 0xFF // one bit of the MAC
+	answer.Seal()
+
+	ev, err := b.Reply(ctx, d, answer, time.Now())
+	if err != nil {
+		t.Fatalf("Reply: %v", err)
+	}
+	if ev.Kind != bus.KindSecureFailed {
+		t.Fatalf("event = %v, want secure_failed", ev.Kind)
+	}
+
+	if d.Queued() == 0 {
+		t.Error("the command was released by a frame that failed authentication")
+	}
+}

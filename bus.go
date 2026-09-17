@@ -114,6 +114,13 @@ const (
 	// what changed is reported -- except the first report from a device, which
 	// is returned whole so a panel has a baseline.
 	EventStatusChange = bus.KindStatusChange
+
+	// EventKeyInstalled means a device accepted a new Secure Channel base key.
+	//
+	// Persist it. The bus is already using it, but a later run of this process
+	// starts from whatever the application's keyring says, and a device whose
+	// key nobody wrote down is a device nobody can talk to.
+	EventKeyInstalled = bus.KindKeyInstalled
 )
 
 // OfflineThreshold is how many consecutive unanswered polls mark a device

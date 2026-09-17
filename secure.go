@@ -3,7 +3,11 @@
 
 package osdp
 
-import "github.com/regalium-os/osdp-go/internal/secure"
+import (
+	"github.com/regalium-os/osdp-go/internal/bus"
+	"github.com/regalium-os/osdp-go/internal/cmd"
+	"github.com/regalium-os/osdp-go/internal/secure"
+)
 
 // Secure channel types.
 //
@@ -88,6 +92,19 @@ var DefaultBaseKey = secure.DefaultBaseKey
 func NewRegistry(extra ...CipherSuite) (*Registry, error) {
 	return secure.NewRegistry(extra...)
 }
+
+// ErrNotSecure means a key install was attempted on a device with no Secure
+// Channel. The command carries the key as its payload, so sending it in the
+// clear would publish the site key to anyone on the wire -- which is why this
+// is a refusal rather than a warning.
+var ErrNotSecure = bus.ErrNotSecure
+
+// KeySetCommand builds an osdp_KEYSET carrying a new base key.
+//
+// Prefer Panel.InstallKey, which refuses to transmit it without a Secure
+// Channel and sequences the re-handshake afterwards. This exists for a caller
+// driving the bus directly, and carries no such protection.
+func KeySetCommand(key []byte) Message { return cmd.KeySetCommand(key) }
 
 // Secure channel errors, matched with errors.Is.
 var (

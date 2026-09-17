@@ -22,6 +22,7 @@ import (
 // code covers every octet before itself.
 type peripheral struct {
 	session *secure.Session
+	key     secure.BaseKey
 	uid     [8]byte
 	rndB    [8]byte
 
@@ -43,10 +44,18 @@ type peripheral struct {
 	received []cmd.Message
 }
 
+// adopt replaces the device's base key and abandons the session derived from
+// the old one, which is what a real device does on osdp_KEYSET.
+func (p *peripheral) adopt(key secure.BaseKey) {
+	p.key = key
+	p.session = secure.NewSession(secure.AES128{}, secure.RolePD, key)
+}
+
 // newPeripheral returns a device holding key.
 func newPeripheral(key secure.BaseKey) *peripheral {
 	return &peripheral{
 		session: secure.NewSession(secure.AES128{}, secure.RolePD, key),
+		key:     key,
 		uid:     [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
 		rndB:    [8]byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88},
 	}
@@ -161,6 +170,19 @@ func (p *peripheral) answerSecurely(t *testing.T, f frame.Frame, seq uint8) fram
 		Code: cmd.Code(f.Code),
 		Data: append([]byte(nil), payload...),
 	})
+
+	// A device told to change its key stores it and rebuilds its session from
+	// it, exactly as a real one does. Without this a rotation test would prove
+	// only that the panel changed its own mind.
+	if cmd.Code(f.Code) == cmd.KeySet {
+		installed, err := cmd.ParseKeySet(payload)
+		if err != nil {
+			t.Fatalf("device could not parse the key it was sent: %v", err)
+		}
+		reply := p.sealedReply(t, f.Address, seq, secure.SCS16, cmd.ACK, nil)
+		p.adopt(secure.BaseKey(installed.Key))
+		return reply
+	}
 
 	if p.card == nil {
 		return p.sealedReply(t, f.Address, seq, secure.SCS16, cmd.ACK, nil)

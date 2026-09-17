@@ -10,6 +10,7 @@ go_library(
         "codes.go",
         "doc.go",
         "errors.go",
+        "keyset.go",
         "led.go",
         "message.go",
         "names.go",

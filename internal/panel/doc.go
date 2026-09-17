@@ -28,7 +28,7 @@
 //
 // # Allowed imports
 //
-//	stdlib, frame, bus, transport, telemetry
+//	stdlib, frame, cmd, secure, bus, transport, telemetry
 //
 // # Tracing
 //
