@@ -338,7 +338,18 @@ p.Send(ctx, addr, strike)     // release the door
 p.Send(ctx, addr, indicator)  // and show green for the same five seconds
 ```
 
-It returns when the runtime has accepted the command, not when the device has
+A command that goes unanswered is **retried, not lost**. The bus holds it until
+the device replies; a reply lost to a burst of noise puts it back at the front
+of that device's queue. The retry repeats the sequence number rather than
+advancing it, which is how OSDP marks a retransmission: a device caches the
+reply it gave to each sequence, so repeating the number says "say again" and
+the device replays its answer instead of acting twice. A door whose release was
+acknowledged into a noise burst does not open a second time.
+
+An `osdp_NAK` ends that — a refusal is an answer, and retrying a command the
+device has already declined produces the same refusal forever.
+
+`Send` returns when the runtime has accepted the command, not when the device has
 acted on it — a line carries one exchange at a time, so delivery waits for the
 cycle, and blocking until then would make an application hostage to the slowest
 reader on the bus. What actually happened arrives on the event stream, where a
