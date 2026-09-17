@@ -9,9 +9,12 @@
 // cmd sits directly above frame. It owns the meaning of the command byte and the
 // structure of each payload -- osdp_POLL, osdp_ID, osdp_CAP, osdp_LSTAT,
 // osdp_RAW, osdp_KEYPAD, osdp_MFG and the rest -- and the symmetric reply set.
-// It marshals payloads to and from the protobuf domain types generated under
-// protobuf/generated/go, which are the source of truth for field names and
-// semantics.
+//
+// The .proto tree is the source of truth for field names and semantics, but cmd
+// does not import the types generated from it: that would put
+// google.golang.org/protobuf in the dependency graph of every consumer, and
+// this module has no dependencies by design. Conversion lives in the schema
+// module, in protobuf/record, which imports this one.
 //
 // Vendor-specific behaviour does NOT live here. osdp_MFG is decoded only as far
 // as its OUI and vendor-defined body; interpreting that body is the job of a
@@ -22,7 +25,7 @@
 //
 // # Allowed imports
 //
-//	stdlib, frame, telemetry, protobuf/generated/go
+//	stdlib, frame, telemetry
 //
 // # Tracing
 //

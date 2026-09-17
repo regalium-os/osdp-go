@@ -49,10 +49,10 @@ var layers = map[string]layer{
 	"frame":     {dir: "internal/frame", allowed: nil, pure: true},
 	"transport": {dir: "internal/transport", allowed: nil, pure: true},
 	"secure":    {dir: "internal/secure", allowed: []string{"frame"}, pure: true},
-	"cmd":       {dir: "internal/cmd", allowed: []string{"frame", "protobuf"}, pure: true},
+	"cmd":       {dir: "internal/cmd", allowed: []string{"frame"}, pure: true},
 	"bus": {
 		dir:     "internal/bus",
-		allowed: []string{"frame", "cmd", "secure", "transport", "protobuf"},
+		allowed: []string{"frame", "cmd", "secure", "transport"},
 		pure:    true,
 	},
 	"driver": {dir: "internal/driver", allowed: []string{"transport"}, pure: false},
@@ -68,7 +68,7 @@ var layers = map[string]layer{
 	},
 	"provider": {
 		dir:     "internal/provider",
-		allowed: []string{"frame", "cmd", "secure", "bus", "transport", "driver", "protobuf"},
+		allowed: []string{"frame", "cmd", "secure", "bus", "transport", "driver"},
 		pure:    false,
 	},
 }
@@ -81,7 +81,11 @@ func layerOf(localPath string) string {
 			return name
 		}
 	}
-	// protobuf is a sibling module, referenced by name in the allow lists.
+	// protobuf is a sibling module. No layer may import it: the root module has
+	// no dependencies and that is the target state, so pulling the generated
+	// types in here would add google.golang.org/protobuf and grpc to every
+	// consumer of this library. The conversion lives in the schema module
+	// instead, which imports osdp-go rather than the other way round.
 	if strings.HasPrefix(localPath, "protobuf/") {
 		return "protobuf"
 	}

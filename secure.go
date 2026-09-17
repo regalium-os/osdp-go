@@ -32,6 +32,25 @@ type (
 
 	// AES128 is the cipher suite the specification mandates.
 	AES128 = secure.AES128
+
+	// SecureState is how far a device's secure channel has got. It is what
+	// Device.SecureSession reports, and is exported because a caller cannot
+	// act on a value it has no name for.
+	SecureState = secure.State
+)
+
+// Secure channel session states, SIA OSDP v2.2.2 §7.
+//
+// Only SecureEstablished means messages are authenticated. The three before it
+// are a handshake in progress, which has proved nothing yet -- recording a
+// device as secure while it is still challenging would overstate what the
+// evidence is worth.
+const (
+	SecureIdle        = secure.StateIdle
+	SecureChallenged  = secure.StateChallenged
+	SecureCryptogram  = secure.StateCryptogram
+	SecureEstablished = secure.StateEstablished
+	SecureFailed      = secure.StateFailed
 )
 
 // StandardSuiteName is the name of the mandated AES-128 suite. Every

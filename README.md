@@ -250,6 +250,32 @@ The gate fails when it finds no schemas at all. A check that reports success
 because it could not find what it was meant to inspect is worse than no check,
 because it is believed.
 
+### Recording what happened
+
+`protobuf/record` turns a runtime event into the domain record of it. It lives
+in the schema module rather than the library, and the direction is what makes
+that work: the schema module imports `osdp-go`, and `osdp-go` imports nothing.
+An application that wants protobuf records opts into that module and pays for
+it; one that only drives a bus does not, and `internal/arch` fails the build if
+a core layer ever reaches for the generated types.
+
+```go
+rec, err := record.FromEvent(event, name, observedAt)
+```
+
+**A credential is not recorded unless you ask.** By default a card read records
+the reader, the format and the bit count — enough to say a 26-bit Wiegand
+credential was presented at reader 0, not enough to say whose. A record leaves
+the panel: over a network, into a database, into a backup, and into whatever
+reads that backup in five years. `record.WithCredentials()` includes the number,
+for the systems that genuinely need it, as a decision somebody made rather than
+a default nobody noticed.
+
+Each record also carries whether the exchange was authenticated, because a
+credential that arrived in the clear is different evidence from one that arrived
+over a secure channel — and after the fact there is no way to tell them apart
+unless it was written down at the time.
+
 ## The runtime
 
 Everything under `internal/` computes: it takes arguments and returns a decision.

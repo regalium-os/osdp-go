@@ -25,8 +25,7 @@
 //
 // # Allowed imports
 //
-//	stdlib, frame, cmd, secure, bus, transport, driver, telemetry,
-//	protobuf/generated/go
+//	stdlib, frame, cmd, secure, bus, transport, driver, telemetry
 //
 // # Tracing
 //

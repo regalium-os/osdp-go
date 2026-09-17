@@ -20,11 +20,15 @@ import (
 // delete the comments that explain why the bytes are what they are.
 const maxFileLines = 200
 
-// sizedDirs are the trees the limit applies to. Generated code is excluded by
-// omission: protobuf/ and flatbuffers/ output is machine-written and is held to
-// schema review instead.
+// sizedDirs are the trees the limit applies to.
+//
+// protobuf/ is included for the hand-written code in it -- the conversion to
+// the domain records lives there, because the library itself must stay
+// dependency-free. Its generated output is excluded by the walker, which skips
+// any directory named "generated": machine-written code is held to schema
+// review rather than to a line limit.
 var sizedDirs = []string{
-	"internal", "telemetry", "tools",
+	"internal", "protobuf", "telemetry", "tools",
 }
 
 // TestSourceFilesAreWithinLineLimit keeps files readable, tests included.

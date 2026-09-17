@@ -32,7 +32,7 @@
 //
 // # Allowed imports
 //
-//	stdlib, frame, cmd, secure, transport, telemetry, protobuf/generated/go
+//	stdlib, frame, cmd, secure, transport, telemetry
 //
 // # Tracing
 //

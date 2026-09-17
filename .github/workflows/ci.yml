@@ -27,11 +27,17 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Build
-        run: go build ./...
-
-      - name: Vet
-        run: go vet ./...
+      # Every module, not just the root one. `go build ./...` covers the module
+      # it runs in and no other, so building only at the root leaves the schema
+      # and tooling modules unbuilt -- which is how generated code that did not
+      # compile stayed green here for as long as it did.
+      - name: Build and vet every module in the workspace
+        run: |
+          for dir in $(go work edit -json | jq -r '.Use[].DiskPath'); do
+            echo "::group::$dir"
+            (cd "$dir" && go build -o /dev/null ./... && go vet ./...) || exit 1
+            echo "::endgroup::"
+          done
 
       # The hexagon, the pure core, the 200-line limit, the banned imports and
       # the cgo ban. These read the source tree, so they run here rather than
@@ -39,8 +45,13 @@ jobs:
       - name: Architecture conformance
         run: go test ./internal/arch/ -v
 
-      - name: Test
-        run: go test -count=1 ./...
+      - name: Test every module in the workspace
+        run: |
+          for dir in $(go work edit -json | jq -r '.Use[].DiskPath'); do
+            echo "::group::$dir"
+            (cd "$dir" && go test -count=1 ./...) || exit 1
+            echo "::endgroup::"
+          done
 
   race:
     name: Race detector

@@ -11,14 +11,31 @@ mod gen 'tools/just/gen.just'
 # --- Build ---
 
 # Compile every module in the workspace.
+#
+# `go build ./...` covers the module it is run in and no other. With three
+# modules in the workspace that quietly builds a third of the repository, which
+# is how the schema module came to ship generated code that did not compile.
+#
+# The output is discarded because a module whose only command is in a directory
+# of the same name cannot write its binary beside it.
 [group('build')]
 build:
-    go build ./...
+    @just _each "go build -o /dev/null ./..."
 
 # Vet every module.
 [group('build')]
 vet:
-    go vet ./...
+    @just _each "go vet ./..."
+
+# Run a command in each module of the workspace.
+[private]
+_each command:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for dir in $(go work edit -json | jq -r '.Use[].DiskPath'); do
+      printf '\n--- %s ---\n' "$dir"
+      (cd "$dir" && {{command}})
+    done
 
 # Format all Go sources.
 [group('build')]
@@ -27,10 +44,10 @@ fmt:
 
 # --- Test ---
 
-# Run the full Go test suite.
+# Run the full Go test suite, in every module.
 [group('test')]
 test:
-    go test -count=1 ./...
+    @just _each "go test -count=1 ./..."
 
 # Run the suite under the race detector, as CI does.
 #
