@@ -1,0 +1,79 @@
+# golangci-lint v2 configuration.
+#
+# The selection is deliberate rather than "everything on". This is a protocol
+# library handling credentials on a bus, so the linters that earn their place
+# are the ones catching real defects -- unchecked errors, shadowed variables,
+# integer conversions that silently truncate a length field -- not the ones
+# enforcing a house style that gofmt already settles.
+version: "2"
+
+run:
+  timeout: 5m
+  # Nothing here uses cgo, and nothing may start.
+  build-tags: []
+
+linters:
+  default: standard
+  enable:
+    - errcheck        # an ignored error on a wire protocol is a silent drop
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - copyloopvar
+    - durationcheck
+    - errorlint       # errors.Is/As rather than == and type asserts
+    - gocritic
+    - gosec           # this library handles keys and credentials
+    - misspell
+    - nilerr
+    - noctx
+    - predeclared
+    - revive
+    - unconvert
+    - usestdlibvars
+    - wastedassign
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      # `_ = f()` is the idiomatic statement of a deliberate ignore. Flagging it
+      # produces noise, not safety; unchecked returns are still caught.
+      check-blank: false
+    govet:
+      enable-all: true
+      disable:
+        # fieldalignment reorders struct fields for padding. The frame and
+        # session structs are ordered to mirror the wire and the handshake,
+        # which is worth more to a reader than a few bytes per device.
+        - fieldalignment
+    gosec:
+      excludes:
+        # G115 flags integer conversions. The codec converts between octets and
+        # ints constantly and bounds them explicitly; the rule fires on every
+        # one of them.
+        - G115
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+    staticcheck:
+      checks:
+        - all
+
+  exclusions:
+    rules:
+      # Test files may shadow, may use weak randomness for fixtures, and may
+      # ignore errors in helpers where the assertion is the point.
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+          - noctx
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

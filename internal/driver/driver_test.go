@@ -33,8 +33,8 @@ func TestPipeCarriesAFrame(t *testing.T) {
 	}()
 
 	buf := make([]byte, len(wire))
-	if err := device.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
-		t.Fatalf("SetReadDeadline: %v", err)
+	if dlErr := device.SetReadDeadline(time.Now().Add(2 * time.Second)); dlErr != nil {
+		t.Fatalf("SetReadDeadline: %v", dlErr)
 	}
 	n, err := device.Read(buf)
 	if err != nil {

@@ -38,21 +38,21 @@ func TestEndToEndCardRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
-	if _, err := panel.Write(wire); err != nil {
-		t.Fatalf("Write: %v", err)
+	if _, wErr := panel.Write(wire); wErr != nil {
+		t.Fatalf("Write: %v", wErr)
 	}
 
 	// And reads what came back.
-	if err := panel.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
-		t.Fatalf("SetReadDeadline: %v", err)
+	if dlErr := panel.SetReadDeadline(time.Now().Add(2 * time.Second)); dlErr != nil {
+		t.Fatalf("SetReadDeadline: %v", dlErr)
 	}
 	buf := make([]byte, 256)
 	n, err := panel.Read(buf)
 	if err != nil {
 		t.Fatalf("Read: %v", err)
 	}
-	if err := <-answers; err != nil {
-		t.Fatalf("device: %v", err)
+	if deviceErr := <-answers; deviceErr != nil {
+		t.Fatalf("device: %v", deviceErr)
 	}
 
 	reply, err := osdp.Decode(ctx, buf[:n])

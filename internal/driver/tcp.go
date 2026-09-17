@@ -24,7 +24,10 @@ func DialTCP(ctx context.Context, address string) (transport.Port, error) {
 	// request/response protocol on a line where turnaround timing is the whole
 	// budget. Send each frame when it is ready.
 	if tcp, ok := c.(*net.TCPConn); ok {
-		_ = tcp.SetNoDelay(true)
+		if err := tcp.SetNoDelay(true); err != nil {
+			_ = c.Close()
+			return nil, err
+		}
 	}
 	return &conn{c: c, name: address}, nil
 }
@@ -43,7 +46,10 @@ func Accept(l net.Listener) (transport.Port, error) {
 		return nil, err
 	}
 	if tcp, ok := c.(*net.TCPConn); ok {
-		_ = tcp.SetNoDelay(true)
+		if err := tcp.SetNoDelay(true); err != nil {
+			_ = c.Close()
+			return nil, err
+		}
 	}
 	return &conn{c: c, name: c.RemoteAddr().String()}, nil
 }

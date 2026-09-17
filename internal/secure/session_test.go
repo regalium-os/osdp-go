@@ -126,8 +126,8 @@ func TestSealOpenAcrossTheBus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Authenticate: %v", err)
 	}
-	if err := pd.Verify(sealed, tag[:], true); err != nil {
-		t.Fatalf("Verify: %v", err)
+	if vErr := pd.Verify(sealed, tag[:], true); vErr != nil {
+		t.Fatalf("Verify: %v", vErr)
 	}
 
 	opened, err := pd.Open(sealed, true)

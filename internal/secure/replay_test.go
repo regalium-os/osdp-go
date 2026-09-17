@@ -28,8 +28,8 @@ func TestReplayIsRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Authenticate: %v", err)
 	}
-	if err := pd.Verify(cmd, cmdTag[:], true); err != nil {
-		t.Fatalf("first delivery rejected: %v", err)
+	if vErr := pd.Verify(cmd, cmdTag[:], true); vErr != nil {
+		t.Fatalf("first delivery rejected: %v", vErr)
 	}
 
 	reply := []byte{0x40}
@@ -120,8 +120,8 @@ func TestDefaultKeySessionIsFlagged(t *testing.T) {
 	var installed secure.BaseKey
 	copy(installed[:], secure.DefaultBaseKey[:])
 	installed[0] ^= 0x5A
-	real, _ := handshake(t, installed)
-	if real.UsingDefaultKey() {
+	installedSession, _ := handshake(t, installed)
+	if installedSession.UsingDefaultKey() {
 		t.Error("a session on an installed key reports the default")
 	}
 }

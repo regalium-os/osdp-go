@@ -89,12 +89,10 @@ func (v Vendor) Reconcile(_ cmd.DeviceID, reported Capabilities) Capabilities {
 	return out
 }
 
-// Known vendor OUIs.
+// OUIHID is IEEE registration 00:06:8E, HID Corporation, used widely enough in
+// OSDP deployments to be relied on.
 //
-// # On the state of these values
-//
-// OUIHID is IEEE registration 00:06:8E, HID Corporation, and is used widely
-// enough in OSDP deployments to be relied on.
+// # On the absence of other vendors
 //
 // The Gallagher and Salto identifiers are NOT included, because this library
 // has not been run against their hardware and a wrong OUI is worse than an

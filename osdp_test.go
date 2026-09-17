@@ -22,10 +22,9 @@ func TestFacadeIsUsableFromOutside(t *testing.T) {
 		t.Fatalf("Decode: %v", err)
 	}
 
-	var addr osdp.Address = f.Address
-	if addr != 0x00 {
-		t.Errorf("Address = 0x%02X, want 0x00", byte(addr))
-	}
+	// Passing the field to a function declared in terms of the alias is what
+	// proves the two are the same type.
+	assertAddress(t, f.Address, 0x00)
 	if f.Control.Scheme() != osdp.SchemeCRC16 {
 		t.Error("the aliased Scheme constant does not compare equal")
 	}
@@ -80,5 +79,14 @@ func TestFacadeErrorsMatchWithErrorsIs(t *testing.T) {
 
 	if _, err := osdp.Decode(context.Background(), nil); !errors.Is(err, osdp.ErrShortBuffer) {
 		t.Errorf("Decode(nil) = %v, want ErrShortBuffer", err)
+	}
+}
+
+// assertAddress takes the alias type, so calling it with a Frame field only
+// compiles if osdp.Address and the internal address type are identical.
+func assertAddress(t *testing.T, got osdp.Address, want byte) {
+	t.Helper()
+	if byte(got) != want {
+		t.Errorf("Address = 0x%02X, want 0x%02X", byte(got), want)
 	}
 }

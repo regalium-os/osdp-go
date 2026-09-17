@@ -15,14 +15,16 @@ const (
 	// SCS14 carries the device's initial R-MAC, osdp_RMAC_I.
 	SCS14 BlockType = 0x14
 
-	// SCS15 and SCS16 mark an established session whose payload is
-	// authenticated but not encrypted: 15 from the panel, 16 from the device.
+	// SCS15 marks an established session, panel to device, authenticated but
+	// not encrypted.
 	SCS15 BlockType = 0x15
+	// SCS16 is the same from the device.
 	SCS16 BlockType = 0x16
 
-	// SCS17 and SCS18 mark an established session whose payload is both
-	// encrypted and authenticated: 17 from the panel, 18 from the device.
+	// SCS17 marks an established session, panel to device, both encrypted and
+	// authenticated.
 	SCS17 BlockType = 0x17
+	// SCS18 is the same from the device.
 	SCS18 BlockType = 0x18
 )
 
