@@ -49,17 +49,3 @@ func TestPureLayersDoNoIO(t *testing.T) {
 		})
 	}
 }
-
-// TestStandardCipherSuiteIsReachable guards the interoperability requirement.
-//
-// Secure Channel's AES-128 suite is what every third-party reader in the field
-// speaks. A CipherSuite interface exists so another suite can be added beside
-// it, and this test exists so that "beside" never quietly becomes "instead of".
-func TestStandardCipherSuiteIsReachable(t *testing.T) {
-	root := repoRoot(t)
-	if len(goFiles(t, filepath.Join(root, layers["secure"].dir))) <= 1 {
-		t.Skip("secure not implemented yet; enabled in Phase 2")
-	}
-	t.Error("Phase 2 must replace this with an assertion that the standard " +
-		"AES-128 suite is registered and selectable by default")
-}

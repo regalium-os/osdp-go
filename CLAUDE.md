@@ -17,7 +17,7 @@ Each of these fails CI. Run `just arch` before you think you are done.
 | **No direct OpenTelemetry import, anywhere** | `internal/arch/deps_test.go` |
 | Imports only ever point inward | `internal/arch/arch_test.go` |
 | The pure core performs no I/O | `internal/arch/purity_test.go` |
-| The standard AES-128 suite stays reachable | `internal/arch/purity_test.go` |
+| The standard AES-128 suite stays reachable | `internal/secure/suite_test.go` |
 | `.fbs` has not drifted from the `.proto` it mirrors | `tools/schemadrift` |
 | `.proto` satisfies Google AIP, strictly | `.github/workflows/api-lint.yml` |
 | BUILD files match their sources | `.github/workflows/ci.yml` |

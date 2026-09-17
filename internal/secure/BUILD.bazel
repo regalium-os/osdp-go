@@ -1,8 +1,17 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "secure",
-    srcs = ["doc.go"],
+    srcs = [
+        "aes128.go",
+        "crypt.go",
+        "doc.go",
+        "errors.go",
+        "keys.go",
+        "mac.go",
+        "scs.go",
+        "suite.go",
+    ],
     importpath = "github.com/regalium-os/osdp-go/internal/secure",
     visibility = ["//:__subpackages__"],
 )
@@ -13,4 +22,16 @@ filegroup(
     name = "sources",
     srcs = glob(["**/*.go"]),
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "secure_test",
+    srcs = [
+        "crypt_test.go",
+        "kat_test.go",
+        "mac_test.go",
+        "suite_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    deps = [":secure"],
 )

@@ -213,7 +213,7 @@ flowchart LR
     p0 --> g0 --> p1 --> g1 --> p2 --> g2 --> p3 --> g3
 
     classDef done fill:#dcfce7,stroke:#15803d,color:#14532d
-    class p0,g0 done
+    class p0,g0,p1,g1,p2,g2 done
 ```
 
 ## Development

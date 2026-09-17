@@ -1,0 +1,25 @@
+# OSDP Secure Channel known-answer vectors -- Phase 2.
+#
+# Computed with LibreSSL's AES, independent of Go's crypto/aes, and the
+# generator is itself anchored to the FIPS-197 AES-128 known answer before
+# it is trusted. Derivations follow SIA OSDP v2.2.2 sec.7.
+#
+# Format: 'name = hex  # description'.
+
+scbk = 303132333435363738393a3b3c3d3e3f  # SCBK-D, the specification's well-known default base key
+rnd_a = 0102030405060708  # RND.A, the control panel's random
+rnd_b = 1112131415161718  # RND.B, the peripheral device's random
+s_enc = 9088006279d41b618acaf4760e9deec6  # S-ENC = AES-ECB(SCBK, 01 82 || RND.A[0:6] || zeros)
+s_mac1 = 336a2fd840a10efbb5c322397b9759ef  # S-MAC1 = AES-ECB(SCBK, 01 01 || RND.A[0:6] || zeros)
+s_mac2 = fb271d4a53cd634a17cdac9c9adc86bd  # S-MAC2 = AES-ECB(SCBK, 01 02 || RND.A[0:6] || zeros)
+client_cryptogram = 5963e6947734e9b2701c700e9dd04116  # AES-ECB(S-ENC, RND.A || RND.B), sent by the PD in osdp_CCRYPT
+server_cryptogram = cb255a58db2606492a1fe03461f498e8  # AES-ECB(S-ENC, RND.B || RND.A), sent by the CP in osdp_SCRYPT
+rmac_i = 8695457f1fba99c0ff42066cd7133027  # AES-ECB(S-MAC2, AES-ECB(S-MAC1, server_cryptogram))
+seal_plaintext_short = 60  # a one-octet payload: osdp_POLL
+seal_ciphertext_short = 952fe370be0241153da910927b692d75  # AES-CBC(S-ENC, ~rmac_i) over the padded payload
+seal_plaintext_aligned = 000102030405060708090a0b0c0d0e0f  # a block-aligned payload
+seal_ciphertext_aligned = 453126d8f00369605db3a006fab4969c8212d3edefa18ca13efebf3d8618510e  # grows a whole block; the marker is always appended
+mac_short = 3554c672e4a8eb2f77247a8057a31ca2  # MAC over the one-octet payload, chained from rmac_i
+mac_two_block = 79a3a849da0e8bcb4fbeef1b8513e214  # MAC over a 20-octet payload: S-MAC1 chains, S-MAC2 finalises
+mac_exact_block = dc3996ee638b029d7cc65098f822a4e2  # MAC over exactly 16 octets: no padding block is added
+mac_two_block_input = 000102030405060708090a0b0c0d0e0f10111213  # the 20-octet payload for mac_two_block
