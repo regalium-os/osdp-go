@@ -265,6 +265,35 @@ err := p.Run(ctx) // nil when ctx is cancelled
 single octet reaching a line. `Run` owns everything it starts and nothing
 outlives it. `Close` is idempotent and safe after a failed `Run`.
 
+### Acting on a device
+
+Polling is only half a panel. `Send` queues a command for the next time the
+cycle reaches that address:
+
+```go
+strike, indicator := osdp.Unlock(0, 0, 0, 5*time.Second)
+p.Send(ctx, addr, strike)     // release the door
+p.Send(ctx, addr, indicator)  // and show green for the same five seconds
+```
+
+It returns when the runtime has accepted the command, not when the device has
+acted on it — a line carries one exchange at a time, so delivery waits for the
+cycle, and blocking until then would make an application hostage to the slowest
+reader on the bus. What actually happened arrives on the event stream, where a
+refusal is an `EventNAK`.
+
+Both halves of a grant are **timed** rather than latched. A panel that dies
+mid-grant leaves a locked door and a reader showing the truth about it, which is
+the behaviour a door should have when its panel stops talking.
+
+`Send` is safe from any goroutine while `Run` executes. That is the only way
+into the bus from outside, and it is what lets the bus stay single-threaded: the
+request crosses to the run loop, which is the one goroutine that ever touches it.
+
+Over a Secure Channel a command carrying a payload travels under **SCS_17**,
+enciphered — an osdp_POLL has nothing to encipher and uses SCS_15, but a door
+release does, and it must not be readable by anyone who can reach the wire.
+
 **Backpressure is a decision, not an accident.** A full event buffer stops the
 poll cycle rather than dropping events, because the event this library most
 often carries is a credential presented at a door, and quietly forgetting that
@@ -295,11 +324,13 @@ flowchart LR
     g4{"handshake + authenticated<br/>traffic, both ends"}
     p5["<b>Phase 5</b><br/>the runtime<br/>poll loop · lifecycle"]
     g5{"enrolment, offline and<br/>shutdown over a real port"}
+    p6["<b>Phase 6</b><br/>commands<br/>output · LED · buzzer"]
+    g6{"a door opens, and<br/>enciphered when secure"}
 
-    p0 --> g0 --> p1 --> g1 --> p2 --> g2 --> p3 --> g3 --> p4 --> g4 --> p5 --> g5
+    p0 --> g0 --> p1 --> g1 --> p2 --> g2 --> p3 --> g3 --> p4 --> g4 --> p5 --> g5 --> p6 --> g6
 
     classDef done fill:#dcfce7,stroke:#15803d,color:#14532d
-    class p0,g0,p1,g1,p2,g2,p3,g3,p4,g4,p5,g5 done
+    class p0,g0,p1,g1,p2,g2,p3,g3,p4,g4,p5,g5,p6,g6 done
 ```
 
 ## Using it

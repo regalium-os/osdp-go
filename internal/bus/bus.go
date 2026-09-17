@@ -66,6 +66,24 @@ func New(line transport.Line, addrs []frame.Address, scheme frame.Scheme, opts .
 // Devices returns the devices on this bus, in poll order.
 func (b *Bus) Devices() []*Device { return b.devices }
 
+// Send queues a command for a device, to be sent when the cycle next reaches
+// it.
+//
+// It is not safe to call concurrently with Next or Reply: a Bus drives one
+// line, and a line is serial by nature. The runtime in package panel is what
+// makes concurrent submission safe, by draining the application's requests on
+// the same goroutine that drives the cycle.
+//
+// The message's payload is retained until the command is sent. Do not modify
+// it afterwards.
+//
+// A device that is offline keeps its queued commands rather than losing them --
+// see Device.Queued, which is how a caller notices a reader that is not coming
+// back.
+func (b *Bus) Send(d *Device, m cmd.Message) {
+	d.enqueue(m)
+}
+
 // Line returns the physical parameters this bus was built for.
 //
 // The core does not act on them -- it has no idea what a baud rate is -- but
@@ -169,11 +187,11 @@ func (b *Bus) commandFor(d *Device) (cmd.Message, *frame.SecurityBlock) {
 		return b.handshakeCommand(d)
 
 	case Secure:
-		poll := cmd.Message{Code: cmd.Poll}
-		block := blockForCommand(len(poll.Data))
-		return poll, &block
+		m := d.outbound()
+		block := blockForCommand(len(m.Data))
+		return m, &block
 
 	default:
-		return cmd.Message{Code: cmd.Poll}, nil
+		return d.outbound(), nil
 	}
 }

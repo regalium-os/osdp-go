@@ -83,6 +83,16 @@ type Device struct {
 	// more than one outstanding.
 	pending *secureStep
 
+	// outbox holds commands the application has asked to be sent to this
+	// device, oldest first.
+	//
+	// They wait their turn rather than interrupting: a line carries one
+	// exchange at a time, so a command for a device the cycle has just passed
+	// is sent when the cycle comes round again. That is a property of the wire,
+	// not a scheduling choice, and a caller timing a door release should know
+	// the latency is up to one full pass over the address list.
+	outbox []cmd.Message
+
 	// secureDeclined records that this device will not be offered a secure
 	// channel again: it does not claim the capability, no key is configured
 	// for it, or it failed to prove possession of the one that is. Retrying a
@@ -131,53 +141,6 @@ func (d *Device) resync() {
 
 // Online reports whether the device is answering.
 func (d *Device) Online() bool { return d.State >= Online }
-
-// SecureSession reports the state of this device's secure channel, and whether
-// there is one at all. The session itself stays private: its MAC chains are
-// synchronised with a physical device, and a caller advancing them would break
-// the link it was trying to inspect.
-func (d *Device) SecureSession() (secure.State, bool) {
-	if d.session == nil {
-		return secure.StateIdle, false
-	}
-	return d.session.State(), true
-}
-
-// UsesDefaultKey reports whether this device's secure channel runs on SCBK-D,
-// the key printed in the specification. Such a session is authenticated against
-// public knowledge, which is to say not authenticated at all.
-func (d *Device) UsesDefaultKey() bool {
-	return d.session != nil && d.session.UsingDefaultKey()
-}
-
-// dropSession abandons the secure channel, leaving it open to be rebuilt.
-//
-// The specification's response to a failed authentication is to abandon the
-// session rather than to resynchronise within it: a frame that fails its MAC is
-// a frame something on the line altered, and there is no way to tell how much
-// of the exchange that something saw.
-//
-// Rebuilding is allowed here because a MAC failure on an established session
-// says nothing about the key -- the handshake already proved both ends hold it,
-// so the likeliest cause is the line rather than the configuration.
-func (d *Device) dropSession() {
-	if d.session != nil {
-		d.session.Teardown()
-		d.session = nil
-	}
-	d.pending = nil
-}
-
-// abandonSecure drops the session and stops this device being offered another.
-//
-// Used when the peer has shown it cannot complete a handshake: a cryptogram
-// mismatch means it does not hold the base key, and no number of retries will
-// change that. The application hears KindSecureFailed and decides whether a
-// device it cannot authenticate belongs on the bus at all.
-func (d *Device) abandonSecure() {
-	d.dropSession()
-	d.secureDeclined = true
-}
 
 // traceView is the projection of a Device that may appear in a span.
 type traceView struct {

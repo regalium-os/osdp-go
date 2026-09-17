@@ -12,15 +12,28 @@ package panel
 // quickly rather than after a megabyte of credentials has piled up in memory.
 const defaultEventBuffer = 16
 
+// defaultRequestQueue is how many application commands may be waiting to reach
+// the run loop before Send blocks.
+//
+// It is a handover queue rather than a backlog: the run loop empties it
+// completely between transactions, so anything here waits at most one exchange.
+// Depth exists to absorb a burst of submissions, not to store work.
+const defaultRequestQueue = 16
+
 // settings are the options a panel was built with.
 type settings struct {
-	clock  Clock
-	buffer int
+	clock    Clock
+	buffer   int
+	requests int
 }
 
 // defaults are what New uses when no option says otherwise.
 func defaults() settings {
-	return settings{clock: systemClock{}, buffer: defaultEventBuffer}
+	return settings{
+		clock:    systemClock{},
+		buffer:   defaultEventBuffer,
+		requests: defaultRequestQueue,
+	}
 }
 
 // Option configures a Panel at construction.

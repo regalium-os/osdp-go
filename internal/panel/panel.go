@@ -45,6 +45,15 @@ type Panel struct {
 	clock  Clock
 	events chan bus.Event
 
+	// requests carries application commands from whatever goroutine submitted
+	// them to the one that drives the line. It is the only way into the bus
+	// from outside, which is what lets the bus stay single-threaded.
+	requests chan request
+
+	// stopped is closed when Run returns, so a caller blocked in Send is
+	// released rather than waiting on a loop that has finished.
+	stopped chan struct{}
+
 	started   bool
 	closeOnce sync.Once
 	closeErr  error
@@ -61,10 +70,12 @@ func New(b *bus.Bus, port transport.Port, opts ...Option) *Panel {
 	}
 
 	return &Panel{
-		bus:    b,
-		port:   port,
-		clock:  cfg.clock,
-		events: make(chan bus.Event, cfg.buffer),
+		bus:      b,
+		port:     port,
+		clock:    cfg.clock,
+		events:   make(chan bus.Event, cfg.buffer),
+		requests: make(chan request, cfg.requests),
+		stopped:  make(chan struct{}),
 	}
 }
 
@@ -115,6 +126,11 @@ func (p *Panel) Run(ctx context.Context) error {
 	p.started = true
 	defer close(p.events)
 
+	// Release anyone blocked in Send. It closes before the event channel does,
+	// so a caller cannot be told the panel is running by one signal while the
+	// other says it has stopped.
+	defer close(p.stopped)
+
 	if len(p.bus.Devices()) == 0 {
 		return ErrNoDevices
 	}
@@ -124,6 +140,13 @@ func (p *Panel) Run(ctx context.Context) error {
 		if err := ctx.Err(); err != nil {
 			return nil
 		}
+
+		// Take whatever the application has asked for since the last
+		// transaction. On this goroutine and no other: it is what keeps the
+		// bus's single-threaded contract true while Send is called from
+		// anywhere.
+		p.drainRequests()
+
 		if err := p.cycle(ctx, r); err != nil {
 			// Cancellation wins over whatever the port said. Shutting down
 			// often stops the far end reading, so the last cycle can fail on a

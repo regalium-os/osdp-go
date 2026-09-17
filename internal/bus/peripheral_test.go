@@ -36,6 +36,11 @@ type peripheral struct {
 	// plainReader makes the device report no Secure Channel capability, which
 	// is what most of the installed base of older readers does.
 	plainReader bool
+
+	// received records the plaintext of every established-session command the
+	// device accepted, so a test can ask what actually arrived rather than
+	// what was queued.
+	received []cmd.Message
 }
 
 // newPeripheral returns a device holding key.
@@ -143,6 +148,19 @@ func (p *peripheral) answerSecurely(t *testing.T, f frame.Frame, seq uint8) fram
 	if err := p.session.Verify(body[:len(body)-secure.MACTagSize], f.Data[split:], true); err != nil {
 		t.Fatalf("device rejected the panel's MAC: %v", err)
 	}
+
+	payload := f.Data[:split]
+	if secure.BlockType(f.Security.Type).Encrypted() {
+		plain, err := p.session.Open(payload, true)
+		if err != nil {
+			t.Fatalf("device could not decipher the command: %v", err)
+		}
+		payload = plain
+	}
+	p.received = append(p.received, cmd.Message{
+		Code: cmd.Code(f.Code),
+		Data: append([]byte(nil), payload...),
+	})
 
 	if p.card == nil {
 		return p.sealedReply(t, f.Address, seq, secure.SCS16, cmd.ACK, nil)

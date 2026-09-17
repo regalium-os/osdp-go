@@ -63,7 +63,7 @@ var layers = map[string]layer{
 	// other way round -- bus has no idea it exists.
 	"panel": {
 		dir:     "internal/panel",
-		allowed: []string{"frame", "bus", "transport"},
+		allowed: []string{"frame", "cmd", "bus", "transport"},
 		pure:    false,
 	},
 	"provider": {

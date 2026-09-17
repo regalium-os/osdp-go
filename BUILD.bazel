@@ -42,6 +42,7 @@ go_library(
     name = "osdp-go",
     srcs = [
         "bus.go",
+        "commands.go",
         "osdp.go",
         "panel.go",
         "secure.go",
@@ -69,6 +70,7 @@ go_test(
         "osdp_test.go",
         "panel_test.go",
         "secure_channel_test.go",
+        "simulator_test.go",
     ],
     deps = [":osdp-go"],
 )

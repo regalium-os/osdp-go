@@ -10,8 +10,10 @@ go_library(
         "codes.go",
         "doc.go",
         "errors.go",
+        "led.go",
         "message.go",
         "names.go",
+        "output.go",
         "payloads.go",
     ],
     importpath = "github.com/regalium-os/osdp-go/internal/cmd",
@@ -32,6 +34,9 @@ filegroup(
 
 go_test(
     name = "cmd_test",
-    srcs = ["capabilities_test.go"],
+    srcs = [
+        "capabilities_test.go",
+        "commands_test.go",
+    ],
     deps = [":cmd"],
 )

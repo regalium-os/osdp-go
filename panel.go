@@ -43,6 +43,17 @@ type (
 //	if err := p.Run(ctx); err != nil { // nil when ctx is cancelled
 //	    return err
 //	}
+//
+// To act on a device rather than only listen to it, Panel.Send queues a
+// command for the next time the cycle reaches that address:
+//
+//	strike, indicator := osdp.Unlock(0, 0, 0, 5*time.Second)
+//	p.Send(ctx, addr, strike)
+//	p.Send(ctx, addr, indicator)
+//
+// Send is safe to call from any goroutine while Run is executing. It is a
+// method of the aliased type rather than something re-declared here, which is
+// the whole reason the facade aliases instead of wrapping.
 func NewPanel(b *Bus, port Port, opts ...PanelOption) *Panel {
 	return panel.New(b, port, opts...)
 }
@@ -61,6 +72,15 @@ func WithEventBuffer(n int) PanelOption { return panel.WithEventBuffer(n) }
 
 // Runtime errors, matched with errors.Is.
 var (
+	// ErrUnknownDevice means a command was addressed to a device this panel
+	// does not poll. The address list is fixed when the bus is built, so such
+	// an address will not become valid by waiting.
+	ErrUnknownDevice = panel.ErrUnknownDevice
+
+	// ErrNotRunning means a command was submitted to a panel whose Run has
+	// returned.
+	ErrNotRunning = panel.ErrNotRunning
+
 	// ErrNoDevices means a panel was asked to run a bus with no addresses on
 	// it: a configuration mistake rather than a fault on the line.
 	ErrNoDevices = panel.ErrNoDevices
