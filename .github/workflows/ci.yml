@@ -8,9 +8,15 @@ on:
 permissions:
   contents: read
 
+# cgo is off everywhere, including the race job. Go's race detector no longer
+# needs it, so there is no reason to make an exception that would let a cgo
+# dependency creep in through the one job nobody looks at.
+env:
+  CGO_ENABLED: "0"
+
 jobs:
   go:
-    name: Go build, vet, test
+    name: Build, vet, test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +31,78 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      # The architecture test asserts the hexagon: which layers may import which,
-      # and that the pure core performs no I/O. It reads the source tree, so it
-      # runs here rather than being inferred from the build graph.
+      # The hexagon, the pure core, the 200-line limit, the banned imports and
+      # the cgo ban. These read the source tree, so they run here rather than
+      # being inferred from the build graph.
       - name: Architecture conformance
         run: go test ./internal/arch/ -v
 
       - name: Test
-        run: go test ./...
+        run: go test -count=1 ./...
+
+  race:
+    name: Race detector
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # A protocol library is driven concurrently by definition: one goroutine
+      # reading a port while another writes it. A data race here corrupts a
+      # frame rather than crashing, which is the kind of bug that gets blamed on
+      # the wiring for a year.
+      - name: Test under the race detector
+        run: go test -race -count=1 ./...
+
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.13.1
+          args: --timeout=5m
+
+  purity:
+    name: Pure Go, no cgo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # internal/arch already rejects an `import "C"`. This catches the other
+      # route in: a dependency that pulls cgo transitively, which no amount of
+      # source inspection would reveal.
+      - name: No cgo in the dependency graph
+        run: |
+          if go list -deps ./... | grep -qx 'runtime/cgo'; then
+            echo "::error::runtime/cgo is in the dependency graph; this library is pure Go"
+            go list -deps ./... | grep -x 'runtime/cgo'
+            exit 1
+          fi
+          echo "no cgo: $(go list -deps ./... | wc -l) packages in the graph"
+
+      # The library must also cross-compile without a toolchain for the target,
+      # which is the practical reason pure Go matters here: these panels are ARM.
+      - name: Cross-compile to the platforms panels run on
+        run: |
+          for target in linux/arm linux/arm64 linux/amd64 windows/amd64 darwin/arm64; do
+            GOOS=${target%/*} GOARCH=${target#*/} go build ./... \
+              && echo "ok $target" \
+              || { echo "::error::failed to build for $target"; exit 1; }
+          done
 
   schema-drift:
     name: FlatBuffers mirror drift
@@ -44,9 +114,8 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      # Runs on every CI run, not on a schedule and not on demand. A .fbs table
-      # that no longer matches the .proto message it mirrors is a field decoding
-      # at the wrong offset on a live bus, and that must never reach a merge.
+      # Runs on every CI run. A .fbs table that no longer matches the .proto it
+      # mirrors is a field decoding at the wrong offset on a live bus.
       - name: Verify .fbs mirrors .proto
         run: go run ./tools/schemadrift
 
