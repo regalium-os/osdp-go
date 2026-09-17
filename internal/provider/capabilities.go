@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package provider
 
 import "github.com/regalium-os/osdp-go/internal/cmd"

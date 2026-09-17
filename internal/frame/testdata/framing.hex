@@ -1,3 +1,6 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 # OSDP frame fixture corpus -- Phase 1 (unencrypted framing).
 #
 # Vectors are spec-derived: frames are constructed per SIA OSDP v2.2.2 sec.5

@@ -1,1 +1,4 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 # gazelle:prefix github.com/regalium-os/osdp-go/protobuf

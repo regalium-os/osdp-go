@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 // Package arch holds the repository's conformance tests.
 //
 // The hexagonal layering here is a constraint, not a convention, so it is

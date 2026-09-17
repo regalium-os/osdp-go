@@ -1,3 +1,6 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 """osdp-go: SIA OSDP v2.2.2 / IEC 60839-11-5 in pure Go.
 
 Bazel 9 is bzlmod-only; there is no WORKSPACE file and adding one has no effect.

@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package bus
 
 import (
@@ -53,6 +56,21 @@ func (b *Bus) Reply(ctx context.Context, d *Device, f frame.Frame, now time.Time
 		return b.event(ctx, Event{Kind: KindResync, Device: d}), nil
 	}
 
+	// An established session authenticates every frame before anything reads
+	// it. Decoding first would mean acting on octets nothing has vouched for,
+	// and AES-CBC is malleable enough that an unverified payload is entirely
+	// attacker-controlled.
+	if d.session != nil && d.session.Established() {
+		payload, sErr := openReply(d.session, f)
+		if sErr != nil {
+			span.RecordError(sErr)
+			d.resync() // which drops the session with it
+
+			return b.event(ctx, Event{Kind: KindSecureFailed, Device: d}), nil
+		}
+		f.Data = payload
+	}
+
 	msg, err := cmd.Decode(ctx, f)
 	if err != nil {
 		span.RecordError(err)
@@ -75,8 +93,26 @@ func (b *Bus) dispatch(ctx context.Context, d *Device, msg cmd.Message) (Event, 
 		return b.event(ctx, Event{Kind: KindIdentified, Device: d, ID: id}), nil
 
 	case cmd.PDCap:
-		d.State = Online
-		return b.event(ctx, Event{Kind: KindOnline, Device: d}), nil
+		report, err := cmd.ParseCapabilities(msg.Data)
+		if err != nil {
+			return Event{}, err
+		}
+		d.Caps = report
+		b.afterCapabilities(d)
+
+		// A device heading into a handshake is enrolled but not yet usable, so
+		// it reports its capabilities rather than announcing itself online.
+		// KindSecure is what says the device is ready.
+		if d.State == SecureHandshake {
+			return b.event(ctx, Event{Kind: KindCapabilities, Device: d, Caps: report}), nil
+		}
+		return b.event(ctx, Event{Kind: KindOnline, Device: d, Caps: report}), nil
+
+	case cmd.CCrypt:
+		return b.onCryptogram(ctx, d, msg.Data)
+
+	case cmd.RMACI:
+		return b.onInitialRMAC(ctx, d, msg.Data)
 
 	case cmd.Raw:
 		card, err := cmd.ParseCardRead(msg.Data)

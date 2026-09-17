@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 // Package transport defines the port through which OSDP octets leave and enter
 // the process. It is an interface package: definitions only, no implementations.
 //

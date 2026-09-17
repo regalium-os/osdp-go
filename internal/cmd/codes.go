@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package cmd
 
 // Code is a command or reply code, the octet that follows the header and any

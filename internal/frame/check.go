@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package frame
 
 // Scheme identifies the trailing error check a frame carries. Which one is in

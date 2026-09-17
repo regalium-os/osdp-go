@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 // The high-frequency OSDP payloads.
 //
 // These are produced by the poll cycle, thousands of times a minute on a busy

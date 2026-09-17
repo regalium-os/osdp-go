@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package bus_test
 
 import (
@@ -69,7 +72,7 @@ func TestOfflineRequiresRepeatedMisses(t *testing.T) {
 	b.Next(ctx)
 	b.Reply(ctx, d, reply(0x00, 1, cmd.ACK, nil), now)
 	b.Next(ctx)
-	b.Reply(ctx, d, reply(0x00, 2, cmd.PDCap, []byte{0x01}), now)
+	b.Reply(ctx, d, reply(0x00, 2, cmd.PDCap, []byte{0x0D, 0x01, 0x01}), now)
 
 	for i := 1; i < bus.OfflineThreshold; i++ {
 		if ev := b.Timeout(ctx, d); ev.Kind != bus.KindNone {

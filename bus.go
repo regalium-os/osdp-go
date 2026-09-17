@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package osdp
 
 import (
@@ -29,6 +32,22 @@ type (
 
 	// Step is one command the bus wants sent, and how long to wait for it.
 	Step = bus.Step
+
+	// BusOption configures a Bus at construction. Options exist so that adding
+	// a capability never breaks a caller.
+	BusOption = bus.Option
+
+	// KeyFor returns the Secure Channel base key for a device, and whether one
+	// is configured. Keys are per device: a deployment sharing one key across a
+	// line has built a single point of compromise.
+	KeyFor = bus.KeyFor
+
+	// NonceSource supplies RND.A, the panel's random for one handshake. It
+	// must come from a cryptographically secure source -- crypto/rand.Read
+	// into an array is the expected implementation. It is injected rather than
+	// read here because the core computes and does not act, which is also what
+	// lets a handshake replay deterministically in a test.
+	NonceSource = bus.NonceSource
 
 	// Message is one command or reply: the code and its payload.
 	Message = cmd.Message
@@ -74,6 +93,21 @@ const (
 	EventNAK          = bus.KindNAK
 	EventResync       = bus.KindResync
 	EventManufacturer = bus.KindManufacturer
+
+	// EventCapabilities carries a device's osdp_PDCAP reply when a Secure
+	// Channel handshake is about to follow: the device is enrolled but not yet
+	// ready for traffic. EventSecure is what says it is.
+	EventCapabilities = bus.KindCapabilities
+
+	// EventSecure means a Secure Channel is established. Event.DefaultKey
+	// reports whether it runs on SCBK-D, which a deployment must not leave in
+	// place.
+	EventSecure = bus.KindSecure
+
+	// EventSecureFailed means the channel could not be established, or an
+	// established one failed authentication and was abandoned. It is an event
+	// rather than an error because only the panel can decide what it means.
+	EventSecureFailed = bus.KindSecureFailed
 )
 
 // OfflineThreshold is how many consecutive unanswered polls mark a device
@@ -82,8 +116,27 @@ const OfflineThreshold = bus.OfflineThreshold
 
 // NewBus returns a bus that polls addrs in order, using the given error check.
 // Prefer SchemeCRC16; the checksum exists for devices too old to manage a CRC.
-func NewBus(line Line, addrs []Address, scheme Scheme) *Bus {
-	return bus.New(line, addrs, scheme)
+//
+// NewBus starts nothing: a caller may construct a bus, inspect it and discard
+// it without a single octet reaching a line.
+func NewBus(line Line, addrs []Address, scheme Scheme, opts ...BusOption) *Bus {
+	return bus.New(line, addrs, scheme, opts...)
+}
+
+// WithSecureChannel makes the bus establish a Secure Channel with any device
+// that both claims AES-128 in its osdp_CAP reply and has a key from keys.
+//
+// Without it no device is offered a secure channel and traffic is plaintext.
+// That default is deliberate: a panel that silently began encrypting would
+// strand every device whose key the application had not yet loaded.
+//
+//	osdp.NewBus(line, addrs, osdp.SchemeCRC16,
+//	    osdp.WithSecureChannel(osdp.AES128{}, keyring.Lookup, randomNonce))
+//
+// suite is normally the standard AES-128 suite, which is what every reader in
+// the field speaks.
+func WithSecureChannel(suite CipherSuite, keys KeyFor, nonce NonceSource) BusOption {
+	return bus.WithSecureChannel(suite, keys, nonce)
 }
 
 // Bus errors, matched with errors.Is.

@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package bus
 
 import "github.com/regalium-os/osdp-go/internal/cmd"
@@ -25,6 +28,21 @@ const (
 	KindResync
 	// KindManufacturer carries an osdp_MFG reply for a provider to interpret.
 	KindManufacturer
+	// KindCapabilities carries a device's osdp_PDCAP response: what it says it
+	// can do. It arrives once per enrolment, between KindIdentified and the
+	// device becoming usable.
+	KindCapabilities
+	// KindSecure means a secure channel is established with the device. The
+	// event carries whether it runs on the specification's default key, which
+	// a deployment should refuse to leave in place.
+	KindSecure
+	// KindSecureFailed means the secure channel could not be established, or
+	// an established one failed authentication and was torn down.
+	//
+	// It is an event rather than an error because the panel must decide what
+	// it means: a site that requires Secure Channel drops the device, and one
+	// still commissioning readers carries on in the clear.
+	KindSecureFailed
 )
 
 // Event is what one exchange produced.
@@ -56,6 +74,14 @@ type Event struct {
 
 	// Manufacturer is valid when Kind is KindManufacturer.
 	Manufacturer cmd.ManufacturerMessage
+
+	// Caps is valid when Kind is KindCapabilities: the report as the device
+	// sent it, before any vendor reconciliation.
+	Caps cmd.CapabilityReport
+
+	// DefaultKey is valid when Kind is KindSecure. True means the session is
+	// running on SCBK-D and the line has no confidentiality worth the name.
+	DefaultKey bool
 }
 
 // traceEvent is the projection of an Event that may appear in a span.
@@ -102,6 +128,12 @@ func (k Kind) String() string {
 		return "resync"
 	case KindManufacturer:
 		return "manufacturer"
+	case KindCapabilities:
+		return "capabilities"
+	case KindSecure:
+		return "secure"
+	case KindSecureFailed:
+		return "secure_failed"
 	default:
 		return "none"
 	}

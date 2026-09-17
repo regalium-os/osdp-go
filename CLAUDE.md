@@ -24,6 +24,7 @@ Each of these fails CI. Run `just arch` before you think you are done.
 | `.fbs` has not drifted from the `.proto` it mirrors | `tools/schemadrift` |
 | `.proto` satisfies Google AIP, strictly | `.github/workflows/api-lint.yml` |
 | BUILD files match their sources | `.github/workflows/ci.yml` |
+| Every source file carries the Apache-2.0 notice | `internal/arch/license_test.go` |
 
 ## The 200-line limit
 
@@ -41,6 +42,26 @@ doing two jobs — split it.
 
 Generated code under `protobuf/generated/` and `flatbuffers/generated/` is
 exempt. Test files are not.
+
+## Licensing
+
+The project is Apache-2.0. Every hand-written source file opens with the notice
+and its SPDX identifier, in that file kind's comment syntax:
+
+```go
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+```
+
+Leave a blank line between the notice and whatever follows. In Go a comment
+block touching `package x` **becomes** that package's doc comment, and a
+copyright header is not documentation.
+
+This covers `.go`, `.proto`, `BUILD.bazel`, `.yaml`, `.yml`, `.just`, `justfile`,
+`.bazelrc`, and the `.hex` and `.kat` fixture corpora. It does not cover
+generated output, lock files, or `go.mod` — nothing there is authored here.
+`internal/arch/license_test.go` is the authority; add a file kind there rather
+than working around it.
 
 ## Documentation
 

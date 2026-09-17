@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 // Package driver contains the concrete transports that satisfy the transport
 // port: RS-485 serial lines, TCP sockets, and the in-memory pipe used by tests.
 //

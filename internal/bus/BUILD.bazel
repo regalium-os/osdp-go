@@ -1,3 +1,6 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
@@ -7,13 +10,17 @@ go_library(
         "device.go",
         "doc.go",
         "event.go",
+        "options.go",
         "reply.go",
+        "seal.go",
+        "secure.go",
     ],
     importpath = "github.com/regalium-os/osdp-go/internal/bus",
     visibility = ["//:__subpackages__"],
     deps = [
         "//internal/cmd",
         "//internal/frame",
+        "//internal/secure",
         "//internal/transport",
         "//telemetry",
     ],
@@ -31,12 +38,19 @@ go_test(
     name = "bus_test",
     srcs = [
         "bus_test.go",
+        "compose_test.go",
+        "framing_test.go",
         "lifecycle_test.go",
+        "peripheral_test.go",
+        "secure_failure_test.go",
+        "secure_policy_test.go",
+        "secure_test.go",
     ],
+    embed = [":bus"],
     deps = [
-        ":bus",
         "//internal/cmd",
         "//internal/frame",
+        "//internal/secure",
         "//internal/transport",
     ],
 )

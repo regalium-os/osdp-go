@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package cmd
 
 // Mnemonics, kept beside the codes they name so a new command cannot be added

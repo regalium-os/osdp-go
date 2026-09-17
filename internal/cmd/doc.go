@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 // Package cmd implements the OSDP command and reply codec: the CMND/REPLY code
 // and the payload that follows it, carried inside a frame.
 //

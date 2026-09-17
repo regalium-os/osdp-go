@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package cmd
 
 import (
@@ -98,4 +101,36 @@ func Encode(
 	}
 	f.Seal()
 	return f, nil
+}
+
+// EncodeSecure places the message into a frame carrying a security block.
+//
+// Unlike Encode, the returned frame is NOT sealed. An established session
+// appends its message authentication code to the data before the error check,
+// so computing the check here would cover octets that are about to change. The
+// caller seals once the frame is complete; a handshake frame, which carries no
+// code, may be sealed immediately.
+//
+// m.Data and block.Data are referenced by the returned frame, not copied. See
+// frame.Frame for the ownership rules.
+func EncodeSecure(
+	ctx context.Context, m Message, addr frame.Address,
+	seq uint8, scheme frame.Scheme, block frame.SecurityBlock,
+) (frame.Frame, error) {
+	_, span := telemetry.Start(ctx, "osdp.cmd.encode", m.Trace())
+	defer span.End()
+
+	if !addr.Valid() {
+		span.RecordError(frame.ErrInvalidAddress)
+		return frame.Frame{}, frame.ErrInvalidAddress
+	}
+
+	return frame.Frame{
+		IsReply:  m.IsReply,
+		Address:  addr,
+		Control:  frame.NewControl(seq, scheme, true),
+		Security: &block,
+		Code:     byte(m.Code),
+		Data:     m.Data,
+	}, nil
 }

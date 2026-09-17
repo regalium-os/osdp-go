@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package frame
 
 import (
@@ -27,7 +30,7 @@ func (f Frame) Append(ctx context.Context, dst []byte) ([]byte, error) {
 	if f.HasMark {
 		dst = append(dst, Mark)
 	}
-	dst = f.appendBody(dst)
+	dst = f.AppendBody(dst)
 
 	if f.Control.Scheme() == SchemeCRC16 {
 		dst = append(dst, byte(f.Check), byte(f.Check>>8))
@@ -37,9 +40,18 @@ func (f Frame) Append(ctx context.Context, dst []byte) ([]byte, error) {
 	return dst, nil
 }
 
-// appendBody appends the octets the error check covers: start of message
+// AppendBody appends the octets the error check covers: start of message
 // through the end of the data block, excluding any mark octet.
-func (f Frame) appendBody(dst []byte) []byte {
+//
+// It is exported because the secure channel authenticates exactly these octets
+// -- header, security block, code and payload, with the length field already
+// reporting the finished frame. A caller computing a message authentication
+// code builds the frame with room for the code reserved at the end of Data,
+// takes the body, and authenticates all but that reservation. Doing it any
+// other way authenticates a length the receiver will never see.
+//
+// dst may be nil. f is not modified.
+func (f Frame) AppendBody(dst []byte) []byte {
 	total := f.Len()
 
 	dst = append(dst, SOM)
@@ -62,7 +74,7 @@ func (f Frame) appendBody(dst []byte) []byte {
 // ComputeCheck returns the error check the frame's octets call for, using the
 // scheme the control octet declares.
 func (f Frame) ComputeCheck() uint16 {
-	body := f.appendBody(make([]byte, 0, f.Len()))
+	body := f.AppendBody(make([]byte, 0, f.Len()))
 	if f.Control.Scheme() == SchemeCRC16 {
 		return CRC16(body)
 	}

@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 // Package frame implements the OSDP wire frame: the octets between the start-of-
 // message marker and the trailing error check, exactly as they appear on the bus.
 //

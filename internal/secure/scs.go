@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package secure
 
 // BlockType identifies a security block, and with it the phase of the handshake

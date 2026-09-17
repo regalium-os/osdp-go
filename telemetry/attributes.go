@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package telemetry
 
 // Attribute keys, defined once so that osdp.device.address means the same thing

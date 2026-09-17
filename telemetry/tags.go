@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package telemetry
 
 // Span attributes are declared with struct tags rather than written by hand at

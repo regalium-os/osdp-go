@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 // Package osdp implements the SIA OSDP v2.2.2 / IEC 60839-11-5 access-control
 // device protocol.
 //

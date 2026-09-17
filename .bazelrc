@@ -1,3 +1,6 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 # Fail on an unresolved lockfile entry in CI rather than silently updating it.
 common --lockfile_mode=update
 

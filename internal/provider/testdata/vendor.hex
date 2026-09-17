@@ -1,3 +1,6 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 # OSDP provider fixture corpus -- Phase 3 (capability negotiation and osdp_MFG).
 #
 # Vectors are spec-derived, not captured from hardware: frames are constructed

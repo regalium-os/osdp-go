@@ -112,6 +112,28 @@ A `CipherSuite` interface exists so a second suite can be registered *beside* th
 standard one. It is an extension point, never a replacement, and the suite
 registry test asserts exactly that.
 
+The bus brings the channel up from what the device itself said it could do, and
+is off until a key says otherwise — a panel that silently began encrypting would
+strand every reader whose key the application had not yet loaded:
+
+```go
+bus := osdp.NewBus(line, addrs, osdp.SchemeCRC16,
+    osdp.WithSecureChannel(osdp.AES128{}, keyring.Lookup, randomNonce))
+```
+
+A device is challenged only when it claims AES-128 **and** `keyring.Lookup`
+returns a key for it. Anything else is polled in the clear rather than being
+sent a challenge it can only refuse, once per cycle, forever. A device that
+fails the handshake reports `EventSecureFailed` and is not asked again: a
+cryptogram mismatch means the reader does not hold the key, and retrying cannot
+change that. A frame that fails its MAC on an *established* session is treated
+differently — the key is already proven, so the line is the likelier culprit,
+and the session is torn down and rebuilt.
+
+`RND.A` is injected rather than read from `crypto/rand` here, for the same
+reason time is: the core computes and does not act. It is also what lets a whole
+handshake replay deterministically in a table test.
+
 ### Observability
 
 Spans sit at every layer boundary from the first commit. This is a design
@@ -227,11 +249,13 @@ flowchart LR
     g2{"Secure Channel fixtures<br/>byte-exact"}
     p3["<b>Phase 3</b><br/>providers<br/>capability negotiation"]
     g3{"per-vendor MFG + CAP<br/>fixtures pass"}
+    p4["<b>Phase 4</b><br/>Secure Channel<br/>on the poll cycle"]
+    g4{"handshake + authenticated<br/>traffic, both ends"}
 
-    p0 --> g0 --> p1 --> g1 --> p2 --> g2 --> p3 --> g3
+    p0 --> g0 --> p1 --> g1 --> p2 --> g2 --> p3 --> g3 --> p4 --> g4
 
     classDef done fill:#dcfce7,stroke:#15803d,color:#14532d
-    class p0,g0,p1,g1,p2,g2,p3,g3 done
+    class p0,g0,p1,g1,p2,g2,p3,g3,p4,g4 done
 ```
 
 ## Using it
@@ -254,6 +278,7 @@ event, _ := bus.Reply(ctx, step.Device, reply, time.Now())
 switch event.Kind {
 case osdp.EventCardRead:  // event.Card is a credential; do not log it
 case osdp.EventOffline:   // a reader stopped answering
+case osdp.EventSecure:    // event.DefaultKey means it is still on SCBK-D
 }
 ```
 
@@ -280,3 +305,24 @@ requirements, and the library and runtime API rules — are in
 Bazel 9 is bzlmod-only; there is no `WORKSPACE` file. The build is pure Go with
 cgo disabled, which keeps cross-compilation to the ARM panels this runs on a
 one-flag affair.
+
+## Licence
+
+Apache License 2.0. See [LICENSE](LICENSE).
+
+Every source file carries the notice and its SPDX identifier:
+
+```go
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+```
+
+The machine-readable identifier is the part that matters: a compliance scan in
+the software that imports this library reads that line, not the prose in
+LICENSE. `internal/arch/license_test.go` fails the build for a source file
+without one, so the notice cannot rot as files are added.
+
+Generated output under `protobuf/generated/` is excluded, because it is
+rewritten wholesale on every run. The notice lives on the `.proto` it is
+generated from instead, and `protoc-gen-go` carries that leading comment block
+into the Go it emits.

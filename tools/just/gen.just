@@ -1,3 +1,6 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 # Code generation for the schema layer.
 #
 # The .proto tree is the source of truth. The .fbs tree mirrors a deliberately

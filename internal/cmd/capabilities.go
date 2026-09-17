@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package cmd
 
 // Function is an osdp_PDCAP capability function code: the first octet of each

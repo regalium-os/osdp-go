@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 // Package secure implements OSDP Secure Channel: session establishment, key
 // derivation, message encryption, and the message authentication code that
 // covers every secured frame.

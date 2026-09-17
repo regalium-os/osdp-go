@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 package secure
 
 // StandardSuiteName is the cipher suite SIA OSDP v2.2.2 mandates.

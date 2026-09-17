@@ -1,3 +1,6 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 load("@gazelle//:def.bzl", "gazelle")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
@@ -61,6 +64,7 @@ go_test(
         "capabilities_test.go",
         "e2e_test.go",
         "osdp_test.go",
+        "secure_channel_test.go",
     ],
     deps = [":osdp-go"],
 )

@@ -1,3 +1,6 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 load("@rules_go//go:def.bzl", "go_test")
 
 go_test(
@@ -5,6 +8,7 @@ go_test(
     srcs = [
         "arch_test.go",
         "deps_test.go",
+        "license_test.go",
         "purity_test.go",
         "size_test.go",
         "support_test.go",

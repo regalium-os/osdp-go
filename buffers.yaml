@@ -1,3 +1,6 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 # buffers.yaml -- the mirrored schema for the poll-cycle payloads.
 #
 # The .proto tree is the source of truth. This file derives the zero-copy

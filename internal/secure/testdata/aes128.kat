@@ -1,3 +1,6 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 # OSDP Secure Channel known-answer vectors -- Phase 2.
 #
 # Computed with LibreSSL's AES, independent of Go's crypto/aes, and the

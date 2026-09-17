@@ -1,3 +1,6 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
 # Proto workspace config (Protobuf AIP Linter)
 # See: https://github.com/the-protobuf-project/google-api-linter-vscode
 

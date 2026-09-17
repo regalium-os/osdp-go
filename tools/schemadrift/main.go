@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 // Command schemadrift verifies that the FlatBuffers poll-cycle schema still
 // mirrors the protobuf messages it claims to mirror.
 //

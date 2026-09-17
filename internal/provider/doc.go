@@ -1,3 +1,6 @@
+// Copyright 2026 RegaliumOS™.
+// SPDX-License-Identifier: Apache-2.0
+
 // Package provider adapts the OSDP core to a specific reader vendor.
 //
 // # Layer contract
