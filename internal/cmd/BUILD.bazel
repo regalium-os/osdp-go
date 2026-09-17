@@ -2,9 +2,20 @@ load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "cmd",
-    srcs = ["doc.go"],
+    srcs = [
+        "codes.go",
+        "doc.go",
+        "errors.go",
+        "message.go",
+        "names.go",
+        "payloads.go",
+    ],
     importpath = "github.com/regalium-os/osdp-go/internal/cmd",
     visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/frame",
+        "//telemetry",
+    ],
 )
 
 # Read as data by the conformance tests; without it they would run blind.

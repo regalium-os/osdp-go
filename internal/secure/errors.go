@@ -27,6 +27,18 @@ var (
 	// ErrSuiteUnavailable reports a cipher suite that is not registered.
 	ErrSuiteUnavailable = errors.New("osdp/secure: cipher suite not registered")
 
+	// ErrWrongRole reports a handshake step invoked on the wrong end of the
+	// bus -- a device trying to issue a challenge, for instance.
+	ErrWrongRole = errors.New("osdp/secure: handshake step does not belong to this role")
+
+	// ErrMalformedHandshake reports a handshake payload of the wrong size, or
+	// one arriving in the wrong state.
+	ErrMalformedHandshake = errors.New("osdp/secure: malformed handshake message")
+
+	// ErrNotEstablished reports an attempt to seal or authenticate before the
+	// handshake has completed.
+	ErrNotEstablished = errors.New("osdp/secure: session is not established")
+
 	// ErrSuiteReserved reports an attempt to register a suite under the name
 	// of the specification-mandated one. The standard suite is what every
 	// third-party reader speaks; it cannot be displaced.

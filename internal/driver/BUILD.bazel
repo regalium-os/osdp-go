@@ -1,10 +1,16 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "driver",
-    srcs = ["doc.go"],
+    srcs = [
+        "conn.go",
+        "doc.go",
+        "pipe.go",
+        "tcp.go",
+    ],
     importpath = "github.com/regalium-os/osdp-go/internal/driver",
     visibility = ["//:__subpackages__"],
+    deps = ["//internal/transport"],
 )
 
 # Read as data by the conformance tests; without it they would run blind.
@@ -13,4 +19,14 @@ filegroup(
     name = "sources",
     srcs = glob(["**/*.go"]),
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "driver_test",
+    srcs = ["driver_test.go"],
+    deps = [
+        ":driver",
+        "//internal/frame",
+        "//internal/transport",
+    ],
 )

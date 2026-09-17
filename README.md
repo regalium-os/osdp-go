@@ -213,8 +213,35 @@ flowchart LR
     p0 --> g0 --> p1 --> g1 --> p2 --> g2 --> p3 --> g3
 
     classDef done fill:#dcfce7,stroke:#15803d,color:#14532d
-    class p0,g0,p1,g1,p2,g2 done
+    class p0,g0,p1,g1,p2,g2,p3 done
 ```
+
+## Using it
+
+```go
+panel, device := osdp.Pipe() // or osdp.DialTCP(ctx, "converter:4001")
+defer panel.Close()
+
+line := osdp.Line{Name: "door-1", Baud: 9600, ReplyTimeout: time.Second}
+bus := osdp.NewBus(line, []osdp.Address{0x00, 0x01}, osdp.SchemeCRC16)
+
+step, _ := bus.Next(ctx)          // what to send, and how long to wait
+wire, _ := step.Frame.Append(ctx, nil)
+panel.Write(wire)
+
+n, _ := panel.Read(buf)
+reply, _ := osdp.Decode(ctx, buf[:n])
+event, _ := bus.Reply(ctx, step.Device, reply, time.Now())
+
+switch event.Kind {
+case osdp.EventCardRead:  // event.Card is a credential; do not log it
+case osdp.EventOffline:   // a reader stopped answering
+}
+```
+
+The bus never touches the port. It says what should happen; when is the caller's
+decision, which is what lets a full online/offline/resync scenario run as a
+table test with no hardware.
 
 ## Development
 

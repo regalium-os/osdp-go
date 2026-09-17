@@ -1,10 +1,17 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "provider",
-    srcs = ["doc.go"],
+    srcs = [
+        "doc.go",
+        "generic.go",
+        "provider.go",
+        "registry.go",
+        "vendor.go",
+    ],
     importpath = "github.com/regalium-os/osdp-go/internal/provider",
     visibility = ["//:__subpackages__"],
+    deps = ["//internal/cmd"],
 )
 
 # Read as data by the conformance tests; without it they would run blind.
@@ -13,4 +20,13 @@ filegroup(
     name = "sources",
     srcs = glob(["**/*.go"]),
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "provider_test",
+    srcs = ["provider_test.go"],
+    deps = [
+        ":provider",
+        "//internal/cmd",
+    ],
 )

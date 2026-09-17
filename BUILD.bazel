@@ -31,19 +31,29 @@ filegroup(
 go_library(
     name = "osdp-go",
     srcs = [
+        "bus.go",
         "osdp.go",
         "secure.go",
+        "vendor.go",
     ],
     importpath = "github.com/regalium-os/osdp-go",
     visibility = ["//visibility:public"],
     deps = [
+        "//internal/bus",
+        "//internal/cmd",
+        "//internal/driver",
         "//internal/frame",
+        "//internal/provider",
         "//internal/secure",
+        "//internal/transport",
     ],
 )
 
 go_test(
     name = "osdp-go_test",
-    srcs = ["osdp_test.go"],
+    srcs = [
+        "e2e_test.go",
+        "osdp_test.go",
+    ],
     deps = [":osdp-go"],
 )
