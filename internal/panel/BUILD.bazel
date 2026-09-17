@@ -32,6 +32,7 @@ go_test(
         "panel_test.go",
         "reader_test.go",
         "send_test.go",
+        "status_test.go",
         "support_test.go",
     ],
     embed = [":panel"],

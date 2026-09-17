@@ -71,36 +71,7 @@ type (
 
 	// NAKReason is why a device refused a command.
 	NAKReason = cmd.NAKReason
-
-	// StatusChange is one contact reported at one state: a door position, a
-	// request-to-exit, a tamper switch, a strike relay.
-	StatusChange = cmd.StatusChange
-
-	// StatusKind says which kind of contact a change concerns.
-	StatusKind = cmd.StatusKind
 )
-
-// Kinds of contact, SIA OSDP v2.2.2 §6. The values match the domain schema's
-// osdp.event.v1.StatusKind, so a change and the record of it cannot disagree
-// about what changed.
-const (
-	StatusInput  = cmd.StatusInput
-	StatusOutput = cmd.StatusOutput
-	StatusTamper = cmd.StatusTamper
-	StatusPower  = cmd.StatusPower
-	StatusLocal  = cmd.StatusLocal
-)
-
-// Status request commands. Each asks a device to report one kind of contact.
-//
-// A device with something to say also reports unsolicited, in answer to an
-// ordinary poll, which is the usual way a panel learns a door opened. These
-// exist for the other case: establishing what a device believes right now,
-// after a panel restart or a line that has been quiet.
-func LocalStatusCommand() Message  { return cmd.LocalStatusCommand() }
-func InputStatusCommand() Message  { return cmd.InputStatusCommand() }
-func OutputStatusCommand() Message { return cmd.OutputStatusCommand() }
-func ReaderStatusCommand() Message { return cmd.ReaderStatusCommand() }
 
 // Device states.
 const (

@@ -46,6 +46,7 @@ go_library(
         "osdp.go",
         "panel.go",
         "secure.go",
+        "status.go",
         "vendor.go",
     ],
     importpath = "github.com/regalium-os/osdp-go",

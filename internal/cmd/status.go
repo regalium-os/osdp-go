@@ -120,7 +120,15 @@ func ParseLocalStatus(data []byte) ([]StatusChange, error) {
 // Status commands carry no payload: each asks a device to report one kind of
 // contact. A device with something to say also reports unsolicited, in answer
 // to an ordinary poll, which is the usual way a panel learns a door opened.
-func LocalStatusCommand() Message  { return Message{Code: LStat} }
-func InputStatusCommand() Message  { return Message{Code: IStat} }
+
+// LocalStatusCommand builds osdp_LSTAT: the device's tamper and power state.
+func LocalStatusCommand() Message { return Message{Code: LStat} }
+
+// InputStatusCommand builds osdp_ISTAT: the device's monitored inputs.
+func InputStatusCommand() Message { return Message{Code: IStat} }
+
+// OutputStatusCommand builds osdp_OSTAT: the device's controlled outputs.
 func OutputStatusCommand() Message { return Message{Code: OStat} }
+
+// ReaderStatusCommand builds osdp_RSTAT: the state of each reader head.
 func ReaderStatusCommand() Message { return Message{Code: RStat} }
