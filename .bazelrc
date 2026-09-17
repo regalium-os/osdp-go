@@ -1,0 +1,24 @@
+# Fail on an unresolved lockfile entry in CI rather than silently updating it.
+common --lockfile_mode=update
+
+# Surface the failing test's output; a passing run stays quiet.
+test --test_output=errors
+test --test_summary=terse
+
+# Protocol work is byte-exact: keep test caching honest about the environment.
+build --incompatible_strict_action_env
+
+# osdp-go is pure Go. Nothing in the stack needs cgo -- the serial transport is
+# a userspace termios ioctl, not a C library -- and staying pure keeps
+# cross-compilation to the ARM panels this runs on a one-flag affair.
+#
+# It also sidesteps a local toolchain break: Bazel resolves the Command Line
+# Tools SDK, whose .tbd stubs declare an arm64e.x1 slice that the CLT linker's
+# tapi cannot parse, so every cgo link fails even though Xcode's clang is fine.
+build --@rules_go//go/config:pure
+
+# CI: no interactive progress, and treat lockfile drift as an error.
+common:ci --lockfile_mode=error
+common:ci --color=no
+common:ci --curses=no
+test:ci --test_output=errors

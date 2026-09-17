@@ -1,0 +1,26 @@
+"""osdp-go: SIA OSDP v2.2.2 / IEC 60839-11-5 in pure Go.
+
+Bazel 9 is bzlmod-only; there is no WORKSPACE file and adding one has no effect.
+"""
+
+module(
+    name = "osdp_go",
+    version = "0.0.0",
+    compatibility_level = 1,
+)
+
+bazel_dep(name = "rules_go", version = "0.63.0")
+bazel_dep(name = "gazelle", version = "0.54.0")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+
+# flatc, for the poll-cycle schema mirror. Pinned to match the .fbs generator
+# used by the drift check so a Bazel build and a local `just` run agree.
+bazel_dep(name = "flatbuffers", version = "25.12.19.bcr.1")
+
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
+go_sdk.download(version = "1.27.0")
+
+# Dependencies are resolved from the Go workspace, so go.work/go.mod stay the
+# single source of truth and `go build` and `bazel build` cannot disagree.
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+go_deps.from_file(go_work = "//:go.work")

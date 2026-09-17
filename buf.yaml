@@ -1,0 +1,13 @@
+version: v2
+modules:
+  - path: protobuf
+    name: buf.build/regalium-os/osdp-go
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/bufbuild/protovalidate

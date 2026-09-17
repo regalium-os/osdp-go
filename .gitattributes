@@ -1,0 +1,12 @@
+# Schema languages are first-class source here, not vendored noise.
+*.proto linguist-detectable=true
+*.fbs linguist-detectable=true
+*.fbs linguist-language=FlatBuffers
+
+# Generated Go: present in the tree so `go get` works without a codegen step,
+# but excluded from diffs and language stats.
+protobuf/generated/** linguist-generated=true
+flatbuffers/generated/** linguist-generated=true
+
+# Fixture corpora are hex text; keep them byte-stable across platforms.
+testdata/fixtures/** -text

@@ -1,0 +1,11 @@
+# Bazel convenience symlinks. MODULE.bazel.lock is deliberately NOT ignored:
+# it pins the module graph, and CI runs with --lockfile_mode=error.
+/bazel-*
+
+# Go
+*.test
+*.out
+/coverage.*
+
+# Local tool state
+.DS_Store

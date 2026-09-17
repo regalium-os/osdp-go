@@ -1,0 +1,25 @@
+load("@rules_go//go:def.bzl", "go_test")
+
+go_test(
+    name = "arch_test",
+    srcs = [
+        "arch_test.go",
+        "purity_test.go",
+        "size_test.go",
+        "support_test.go",
+    ],
+    # The conformance tests read the repository's source files rather than its
+    # build graph, so the sources must be declared as inputs. Without this the
+    # tests run against an empty tree and pass on nothing.
+    # keep
+    data = ["//:all_go_sources"],
+    # keep
+    rundir = ".",
+)
+
+# keep
+filegroup(
+    name = "sources",
+    srcs = glob(["**/*.go"]),
+    visibility = ["//visibility:public"],
+)

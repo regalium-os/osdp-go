@@ -1,0 +1,53 @@
+name: Protobuf API lint
+
+on:
+  push:
+    branches: [main]
+  # No branch filter: gate every PR, whatever it targets.
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  aip:
+    name: Google AIP lint (strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The protobuf tree is populated in Phase 1. Until then there is nothing
+      # to lint, and the linter treats an empty input as an error rather than a
+      # pass, so skip the step instead of shipping a red first commit.
+      - id: probe
+        run: |
+          if compgen -G 'protobuf/**/*.proto' > /dev/null || \
+             [ -n "$(find protobuf -name '*.proto' -print -quit)" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No .proto files yet; AIP lint activates in Phase 1."
+          fi
+        shell: bash
+
+      # The .proto tree is the source-of-truth domain schema, so it is held to
+      # the AIP standard methods and resource-name conventions rather than to
+      # whatever each message's author found convenient.
+      #
+      # Strict: in-proto `(-- api-linter: disable=... --)` comments are ignored,
+      # and any finding at all fails the job.
+      - if: steps.probe.outputs.found == 'true'
+        # Pinned to the same main commit the sibling repositories use: the
+        # `buf` and `ignore-comment-disables` inputs postdate the v1.0.0 tag.
+        uses: the-protobuf-project/setup-google-api-linter@f2f9161d0333b3da9e58595f249107fc2cdaa033
+        with:
+          version: 2.3.1
+          # Lint from the buf module root so each file's path matches its proto
+          # package (osdp/<domain>/v1/...). Linting from the repository root
+          # instead trips core::0191::proto-package on every file.
+          working-directory: protobuf
+          paths: "**/*.proto"
+          buf: true
+          buf-input: ".."
+          ignore-comment-disables: true
+          fail-on-error: true

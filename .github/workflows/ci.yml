@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go build, vet, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      # The architecture test asserts the hexagon: which layers may import which,
+      # and that the pure core performs no I/O. It reads the source tree, so it
+      # runs here rather than being inferred from the build graph.
+      - name: Architecture conformance
+        run: go test ./internal/arch/ -v
+
+      - name: Test
+        run: go test ./...
+
+  schema-drift:
+    name: FlatBuffers mirror drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Runs on every CI run, not on a schedule and not on demand. A .fbs table
+      # that no longer matches the .proto message it mirrors is a field decoding
+      # at the wrong offset on a live bus, and that must never reach a merge.
+      - name: Verify .fbs mirrors .proto
+        run: go run ./tools/schemadrift
+
+  bazel:
+    name: Bazel build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Bazel
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel
+          key: bazel-${{ runner.os }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          restore-keys: bazel-${{ runner.os }}-
+
+      - name: Test
+        run: bazel test --config=ci //...
+
+      # Generated BUILD files must match the sources that produced them, or the
+      # Bazel graph and the Go graph quietly describe different programs.
+      - name: BUILD files are up to date
+        run: |
+          bazel run --config=ci //:gazelle
+          git diff --exit-code || {
+            echo "::error::BUILD files are stale. Run 'just tidy' and commit the result."
+            exit 1
+          }

@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "schemadrift_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/regalium-os/osdp-go/tools/schemadrift",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "schemadrift",
+    embed = [":schemadrift_lib"],
+    visibility = ["//visibility:public"],
+)
+
+# Read as data by the conformance tests. keep
+# keep
+filegroup(
+    name = "sources",
+    srcs = glob(["**/*.go"]),
+    visibility = ["//visibility:public"],
+)

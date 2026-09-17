@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "bus",
+    srcs = ["doc.go"],
+    importpath = "github.com/regalium-os/osdp-go/bus",
+    visibility = ["//visibility:public"],
+)
+
+# The architecture test reads these as data; without them it would run blind.
+# keep
+filegroup(
+    name = "sources",
+    srcs = glob(["**/*.go"]),
+    visibility = ["//visibility:public"],
+)
