@@ -43,9 +43,43 @@ func (d *Device) dequeue() (cmd.Message, bool) {
 // A poll is not filler. It is how a device reports a card read, so a bus with
 // nothing to say still has to ask -- which is why an empty outbox produces a
 // command rather than nothing.
+//
+// A dequeued command is held as in-flight rather than discarded. Until the
+// device answers, the bus is still holding the only copy of it.
 func (d *Device) outbound() cmd.Message {
 	if m, ok := d.dequeue(); ok {
+		d.inflight = &m
 		return m
 	}
 	return cmd.Message{Code: cmd.Poll}
+}
+
+// delivered records that the device answered whatever was last sent to it.
+//
+// A refusal counts. An osdp_NAK is the device saying it received the command
+// and declined it, which is an answer: retrying a command a device has already
+// rejected produces the same rejection forever.
+func (d *Device) delivered() { d.inflight = nil }
+
+// retransmit puts an unanswered command back at the front of the queue and
+// marks the next transmission as a repeat.
+func (d *Device) retransmit() {
+	if d.inflight == nil {
+		return
+	}
+	d.requeue()
+	d.repeatSequence = true
+}
+
+// requeue returns the in-flight command to the front of the queue.
+//
+// The front, not the back: commands to one device are delivered in the order
+// they were submitted, and a door release that jumped behind a display update
+// because the first attempt was lost would be a surprising thing to debug.
+func (d *Device) requeue() {
+	if d.inflight == nil {
+		return
+	}
+	d.outbox = append([]cmd.Message{*d.inflight}, d.outbox...)
+	d.inflight = nil
 }

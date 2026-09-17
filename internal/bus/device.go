@@ -87,6 +87,22 @@ type Device struct {
 	// what turns a report into a change. See statusChanges.
 	status map[cmd.StatusKind]*contacts
 
+	// inflight is the application command currently on the wire: dequeued and
+	// transmitted, but not yet answered. It is held rather than discarded so
+	// that a device which never replies does not take the command with it.
+	inflight *cmd.Message
+
+	// repeatSequence makes the next command reuse the last sequence number
+	// instead of advancing.
+	//
+	// That is how OSDP marks a retransmission, and it is not a detail. A
+	// device caches the reply it gave to each sequence number: repeating the
+	// number means "I did not hear you, say again", and the device replays its
+	// cached answer instead of acting a second time. Advancing the number
+	// instead would present the retry as a new command -- and a door that was
+	// unlocked, whose reply was lost to a noise burst, would unlock again.
+	repeatSequence bool
+
 	// outbox holds commands the application has asked to be sent to this
 	// device, oldest first.
 	//
@@ -121,8 +137,15 @@ type Device struct {
 // sequenceRotation is 1, 2, 3 and back to 1. Zero is reserved for resynchronisation.
 const sequenceRotation = 3
 
-// nextSequence advances and returns the sequence number for the next command.
+// nextSequence advances and returns the sequence number for the next command,
+// or repeats the last one when this transmission is a retry.
+//
+// See repeatSequence for why a retry must not advance.
 func (d *Device) nextSequence() uint8 {
+	if d.repeatSequence {
+		d.repeatSequence = false
+		return d.seq
+	}
 	if d.seq >= sequenceRotation {
 		d.seq = 1
 	} else {
@@ -134,7 +157,13 @@ func (d *Device) nextSequence() uint8 {
 // resync restarts the exchange at sequence zero, which is how a panel tells a
 // device to forget what it thought was in flight.
 func (d *Device) resync() {
+	// A command that was in flight when the exchange restarted was never
+	// acknowledged. It goes back on the queue to be sent once the device has
+	// been identified again, rather than vanishing with the session.
+	d.requeue()
+
 	d.seq = 0
+	d.repeatSequence = false
 	d.State = Offline
 
 	// A restarted exchange has no secure channel: the device's session state

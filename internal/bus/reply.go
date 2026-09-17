@@ -47,6 +47,10 @@ func (b *Bus) Reply(ctx context.Context, d *Device, f frame.Frame, now time.Time
 
 	d.LastSeen, d.misses = now, 0
 
+	// The device answered, so whatever was sent to it arrived. What the answer
+	// means is decided below; that it came at all is what releases the command.
+	d.delivered()
+
 	// Sequence zero from a device means it has lost synchronisation: it is
 	// asking to start over rather than refusing. Honour that immediately --
 	// continuing to send the sequence it no longer recognises just produces
@@ -174,6 +178,14 @@ func (b *Bus) Timeout(ctx context.Context, d *Device) Event {
 	defer span.End()
 
 	d.misses++
+
+	// Whatever was sent is unaccounted for: the device may have acted on it and
+	// had its reply lost, or never heard it at all. Either way the bus must not
+	// be the only thing that knew about it. It goes back on the queue, and the
+	// retry repeats the sequence number so a device that did act replays its
+	// answer rather than acting twice.
+	d.retransmit()
+
 	if d.misses < OfflineThreshold || d.State == Offline {
 		return Event{Kind: KindNone, Device: d}
 	}
