@@ -25,6 +25,10 @@ const modulePath = "github.com/regalium-os/osdp-go"
 
 // layer describes one package's permitted dependencies.
 type layer struct {
+	// dir is the package path relative to the repository root. The protocol
+	// layers live under internal/ so that the public API is exactly what the
+	// root osdp package chooses to re-export, and nothing more.
+	dir string
 	// allowed lists the sibling layers this layer may import. Layers absent
 	// from the list are forbidden; telemetry is implicitly allowed everywhere.
 	allowed []string
@@ -38,17 +42,37 @@ type layer struct {
 // The two edge layers -- driver and provider -- are the only packages permitted
 // to touch the outside world. Everything above them is a function of its inputs.
 var layers = map[string]layer{
-	"telemetry": {allowed: nil, pure: true},
-	"frame":     {allowed: nil, pure: true},
-	"transport": {allowed: nil, pure: true},
-	"secure":    {allowed: []string{"frame"}, pure: true},
-	"cmd":       {allowed: []string{"frame", "protobuf"}, pure: true},
-	"bus":       {allowed: []string{"frame", "cmd", "secure", "transport", "protobuf"}, pure: true},
-	"driver":    {allowed: []string{"transport"}, pure: false},
+	"telemetry": {dir: "telemetry", allowed: nil, pure: true},
+	"frame":     {dir: "internal/frame", allowed: nil, pure: true},
+	"transport": {dir: "internal/transport", allowed: nil, pure: true},
+	"secure":    {dir: "internal/secure", allowed: []string{"frame"}, pure: true},
+	"cmd":       {dir: "internal/cmd", allowed: []string{"frame", "protobuf"}, pure: true},
+	"bus": {
+		dir:     "internal/bus",
+		allowed: []string{"frame", "cmd", "secure", "transport", "protobuf"},
+		pure:    true,
+	},
+	"driver": {dir: "internal/driver", allowed: []string{"transport"}, pure: false},
 	"provider": {
+		dir:     "internal/provider",
 		allowed: []string{"frame", "cmd", "secure", "bus", "transport", "driver", "protobuf"},
 		pure:    false,
 	},
+}
+
+// layerOf maps a module-relative import path to the layer that owns it, or ""
+// for a path outside the layered core.
+func layerOf(localPath string) string {
+	for name, spec := range layers {
+		if localPath == spec.dir || strings.HasPrefix(localPath, spec.dir+"/") {
+			return name
+		}
+	}
+	// protobuf is a sibling module, referenced by name in the allow lists.
+	if strings.HasPrefix(localPath, "protobuf/") {
+		return "protobuf"
+	}
+	return ""
 }
 
 // TestEveryLayerIsPresent is the guard against a silently blind test run.
@@ -60,8 +84,8 @@ var layers = map[string]layer{
 func TestEveryLayerIsPresent(t *testing.T) {
 	root := repoRoot(t)
 
-	for name := range layers {
-		dir := filepath.Join(root, name)
+	for name, spec := range layers {
+		dir := filepath.Join(root, spec.dir)
 		if len(goFiles(t, dir)) == 0 {
 			t.Errorf("layer %q contributed no Go files (looked in %s)\n"+
 				"  either the layer was deleted, or this test cannot see the\n"+
@@ -76,13 +100,16 @@ func TestLayerDependencies(t *testing.T) {
 
 	for name, spec := range layers {
 		t.Run(name, func(t *testing.T) {
-			for _, file := range goFiles(t, filepath.Join(root, name)) {
+			for _, file := range goFiles(t, filepath.Join(root, spec.dir)) {
 				for _, imp := range imports(t, file) {
 					localPath, isLocal := strings.CutPrefix(imp, modulePath+"/")
 					if !isLocal {
 						continue
 					}
-					dep, _, _ := strings.Cut(localPath, "/")
+					dep := layerOf(localPath)
+					if dep == "" {
+						continue
+					}
 
 					// telemetry is the one package every layer may import: it
 					// is definitions and no-op tracers, with no direction.

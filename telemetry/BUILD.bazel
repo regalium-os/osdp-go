@@ -1,8 +1,15 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "telemetry",
-    srcs = ["doc.go"],
+    srcs = [
+        "apply.go",
+        "attributes.go",
+        "bind.go",
+        "doc.go",
+        "tags.go",
+        "tracer.go",
+    ],
     importpath = "github.com/regalium-os/osdp-go/telemetry",
     visibility = ["//visibility:public"],
 )
@@ -13,4 +20,10 @@ filegroup(
     name = "sources",
     srcs = glob(["**/*.go"]),
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "telemetry_test",
+    srcs = ["bind_test.go"],
+    deps = [":telemetry"],
 )

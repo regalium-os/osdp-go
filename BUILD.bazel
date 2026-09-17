@@ -1,45 +1,43 @@
 load("@gazelle//:def.bzl", "gazelle")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 # gazelle:prefix github.com/regalium-os/osdp-go
 # gazelle:exclude protobuf/generated
+# gazelle:exclude flatbuffers/generated
 gazelle(name = "gazelle")
 
-gazelle(
-    name = "gazelle-update-repos",
-    args = [
-        "-from_file=go.work",
-        "-to_macro=deps.bzl%go_dependencies",
-        "-prune",
-    ],
-    command = "update-repos",
-)
-
-# The source tree the architecture test inspects. go.work is included because
-# the test locates the repository root by finding it.
-filegroup(
-    name = "layer_sources",
-    srcs = [
-        "go.work",
-        "//bus:sources",
-        "//cmd:sources",
-        "//driver:sources",
-        "//frame:sources",
-        "//provider:sources",
-        "//secure:sources",
-        "//telemetry:sources",
-        "//transport:sources",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-# Everything the line-limit check measures: the layers, plus the internal and
-# tools trees that are equally hand-written and equally subject to it.
+# The source tree the conformance tests inspect. They read files rather than the
+# build graph, so every tree they measure must be declared here; go.work is
+# included because the tests locate the repository root by finding it.
 filegroup(
     name = "all_go_sources",
     srcs = [
-        ":layer_sources",
+        "go.work",
+        "osdp.go",
         "//internal/arch:sources",
+        "//internal/bus:sources",
+        "//internal/cmd:sources",
+        "//internal/driver:sources",
+        "//internal/frame:sources",
+        "//internal/provider:sources",
+        "//internal/secure:sources",
+        "//internal/transport:sources",
+        "//telemetry:sources",
         "//tools/schemadrift:sources",
     ],
     visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "osdp-go",
+    srcs = ["osdp.go"],
+    importpath = "github.com/regalium-os/osdp-go",
+    visibility = ["//visibility:public"],
+    deps = ["//internal/frame"],
+)
+
+go_test(
+    name = "osdp-go_test",
+    srcs = ["osdp_test.go"],
+    deps = [":osdp-go"],
 )

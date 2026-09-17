@@ -92,6 +92,23 @@ func collect(t *testing.T, dir string, match func(string) bool) []string {
 	return out
 }
 
+// rootGoFiles lists the Go files directly in the repository root -- the public
+// facade package -- without recursing into the module's other trees.
+func rootGoFiles(t *testing.T, root string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatalf("reading %s: %v", root, err)
+	}
+	var out []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".go") {
+			out = append(out, filepath.Join(root, e.Name()))
+		}
+	}
+	return out
+}
+
 // imports returns the import paths of a single Go file.
 func imports(t *testing.T, file string) []string {
 	t.Helper()

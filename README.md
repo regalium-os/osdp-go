@@ -11,19 +11,26 @@ world.
 
 ```mermaid
 flowchart TB
-    subgraph edge["edge — the only layers that touch the world"]
-        provider["<b>provider</b><br/>HID · Gallagher · Salto · generic"]
-        driver["<b>driver</b><br/>RS-485 · TCP · in-memory pipe"]
+    api["<b>package osdp</b> · the public surface<br/>re-exports by type alias"]
+
+    subgraph internal["internal/ — not importable from outside the module"]
+        subgraph edge["edge — the only layers that touch the world"]
+            provider["<b>provider</b><br/>HID · Gallagher · Salto · generic"]
+            driver["<b>driver</b><br/>RS-485 · TCP · in-memory pipe"]
+        end
+
+        subgraph core["pure core — no I/O, no clock, no globals"]
+            bus["<b>bus</b><br/>poll-cycle state machine"]
+            cmd["<b>cmd</b><br/>command / reply codec"]
+            secure["<b>secure</b><br/>Secure Channel · AES-128"]
+            frame["<b>frame</b><br/>wire framing · CRC / checksum"]
+            transport["<b>transport</b><br/>the port — interface only"]
+        end
     end
 
-    subgraph core["pure core — no I/O, no clock, no globals"]
-        bus["<b>bus</b><br/>poll-cycle state machine"]
-        cmd["<b>cmd</b><br/>command / reply codec"]
-        secure["<b>secure</b><br/>Secure Channel · AES-128"]
-        frame["<b>frame</b><br/>wire framing · CRC / checksum"]
-        transport["<b>transport</b><br/>the port — interface only"]
-    end
-
+    api --> provider
+    api --> bus
+    api --> frame
     provider --> bus
     provider --> driver
     bus --> cmd
@@ -35,14 +42,25 @@ flowchart TB
 
     classDef pure fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
     classDef io fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d
+    classDef pub fill:#dcfce7,stroke:#15803d,color:#14532d
     class bus,cmd,secure,frame,transport pure
     class provider,driver io
+    class api pub
 ```
 
 Every solid arrow points inward. The one dotted arrow is the inversion that makes
 the whole thing work: `bus` depends on the `transport` *interface*, and `driver`
 satisfies it from outside. The core never learns whether it is speaking to an
 RS-485 line, a socket, or a byte slice in a test.
+
+Every protocol layer lives under `internal/`, so the public API is exactly what
+`package osdp` chooses to re-export and the internals stay free to change.
+Re-export is by **type alias**, not by wrapper type — an alias is the same type,
+so a `Transport` implemented by a third party for a proprietary serial bridge,
+or a `CipherSuite` registered beside the mandated AES-128 one, satisfies the
+internal interfaces without this repository being involved. Wrapping instead of
+aliasing would quietly close every extension point the architecture exists to
+provide.
 
 `telemetry` is omitted from the diagram because every layer may import it — it is
 definitions and no-op tracers, with no direction of its own.
@@ -78,12 +96,32 @@ registry test asserts exactly that.
 
 ### Observability
 
-OpenTelemetry spans sit at every layer boundary from the first commit. This is a
-design constraint rather than an observability feature: a span wrapping
-`frame.Decode` forces `Decode` to take a `context.Context`, which forces its
-callers to have one, which is what keeps cancellation and deadlines flowing
-through a stack that talks to hardware. Retrofitting it later means changing
-every signature in the core.
+Spans sit at every layer boundary from the first commit. This is a design
+constraint rather than an observability feature: a span wrapping `frame.Decode`
+forces `Decode` to take a `context.Context`, which forces its callers to have
+one, which is what keeps cancellation and deadlines flowing through a stack that
+talks to hardware. Retrofitting it later means changing every signature in the
+core.
+
+The core depends on nothing to do it. `telemetry.Tracer` is three methods of
+standard library, and attributes are declared as struct tags — inert strings
+that cost a dependency-free core nothing:
+
+```go
+Address  Address `telemetry:"trace:osdp.device.address"`
+Data     []byte  // no tag: a credential can never reach a trace
+```
+
+One call binds that seam to the
+[telemetry-go](https://github.com/the-protobuf-project/telemetry) SDK, which
+owns the OpenTelemetry integration:
+
+```go
+ctx = telemetry.ContextWithTracer(ctx, telemetry.Bind(p.Tracing.Start))
+```
+
+osdp-go never imports OpenTelemetry directly — a rule enforced by
+`internal/arch/deps_test.go`, not merely documented.
 
 ```mermaid
 flowchart TB

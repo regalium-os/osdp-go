@@ -3,11 +3,11 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "bus",
     srcs = ["doc.go"],
-    importpath = "github.com/regalium-os/osdp-go/bus",
-    visibility = ["//visibility:public"],
+    importpath = "github.com/regalium-os/osdp-go/internal/bus",
+    visibility = ["//:__subpackages__"],
 )
 
-# The architecture test reads these as data; without them it would run blind.
+# Read as data by the conformance tests; without it they would run blind.
 # keep
 filegroup(
     name = "sources",

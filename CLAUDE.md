@@ -14,6 +14,7 @@ Each of these fails CI. Run `just arch` before you think you are done.
 | Rule | Enforced by |
 | --- | --- |
 | No hand-written Go file exceeds 200 lines | `internal/arch/size_test.go` |
+| **No direct OpenTelemetry import, anywhere** | `internal/arch/deps_test.go` |
 | Imports only ever point inward | `internal/arch/arch_test.go` |
 | The pure core performs no I/O | `internal/arch/purity_test.go` |
 | The standard AES-128 suite stays reachable | `internal/arch/purity_test.go` |
@@ -104,14 +105,29 @@ For the long-lived components: `bus`, `driver`, `provider`.
 ## Layering
 
 ```
-frame ← cmd ← bus → transport ← driver
-  ↑      ↑                        ↑
-secure ──┘              provider ─┘
+internal/frame ← internal/cmd ← internal/bus → internal/transport ← internal/driver
+       ↑                ↑                                                  ↑
+internal/secure ────────┘                              internal/provider ──┘
 ```
+
+Every protocol layer is under `internal/`. The public surface is `package osdp`
+at the repository root, plus `telemetry`, and nothing else.
 
 `telemetry` is importable everywhere. Everything else obeys the table in
 `internal/arch/arch_test.go`, which is the authority — update it there, never by
 working around it.
+
+### Re-export by alias, never by wrapper
+
+The root facade re-exports internal types with `type Frame = frame.Frame`. Keep
+it that way. An alias is the same type, so a consumer's `Transport` or
+`CipherSuite` still satisfies the interfaces declared internally. A wrapper type
+would compile and then silently close every extension point — third parties
+could no longer implement a transport or add a cipher suite, which is most of
+what the hexagon is for.
+
+Adding to the public surface is a deliberate act. If something does not need to
+be public, leave it internal.
 
 Vendor differences live **only** in `osdp_MFG` extension commands and `osdp_CAP`
 negotiation. A provider never reimplements framing. If a vendor appears to need
@@ -119,13 +135,53 @@ its own frame codec, that is a quirk flag in `frame` with a fixture proving it.
 
 ## Telemetry
 
-Spans open at layer boundaries and are named `osdp.<layer>.<operation>` —
-`osdp.frame.decode`, `osdp.secure.seal`, `osdp.driver.write`. Tracers resolve
-from the context; there is no package-level tracer.
+**Never import `go.opentelemetry.io/...`. Not in the core, not in an adapter,
+not in a test, not "just for the attribute type".** This is enforced by
+`internal/arch/deps_test.go` and is not a style preference.
 
-**Never record key material, session keys, or challenge nonces as span
-attributes.** Card numbers are personal data — record the format and bit count,
-not the credential.
+Observability goes through the the-protobuf-project telemetry SDK
+(`telemetry-go`), which owns the OpenTelemetry integration, the exporter
+lifecycle and the attribute convention. Two things deciding how a span is made
+is how instrumentation rots.
+
+The seam is the `telemetry` package — `Tracer` and `Span` are three methods of
+standard library, and `telemetry.Bind` attaches the SDK to them:
+
+```go
+ctx = telemetry.ContextWithTracer(ctx, telemetry.Bind(p.Tracing.Start))
+```
+
+`Bind` takes the SDK's `Start` method value rather than the SDK object, because
+the SDK's span type is in an internal package and cannot be named. Matching the
+shape structurally instead of importing the type is why `telemetry` — and the
+whole root module — still has **zero dependencies**.
+
+Spans open at layer boundaries and are named `osdp.<layer>.<operation>` —
+`osdp.frame.decode`, `osdp.secure.seal`, `osdp.driver.write`. Tracers travel on
+the context; there is no package-level tracer.
+
+### Attributes are struct tags, not calls
+
+Declare an attribute next to the field it describes:
+
+```go
+type Frame struct {
+    Address  Address `telemetry:"trace:osdp.device.address"`
+    Sequence uint8   `telemetry:"trace:osdp.frame.sequence"`
+    Data     []byte  // no tag: never recorded
+}
+```
+
+Then pass the value: `telemetry.Start(ctx, "osdp.frame.decode", f)`.
+
+A struct tag is an inert string, so this costs the dependency-free core nothing
+while giving a telemetry-go application full attributes automatically.
+
+**An untagged field is never recorded, and that is the safety mechanism.** This
+library handles credentials. A card number has no tag, so it cannot leak into a
+trace through a well-meaning `SetAttribute` call added in a hot path — there is
+no such call to add. Record the format and the bit count. Never the credential,
+the key material, the session key, or the challenge nonce.
 
 ## Schemas
 
@@ -169,8 +225,10 @@ just gen all    # codegen, then the drift gate
 
 ## Do not
 
-- Add a dependency to the root `go.mod`. The library's dependency footprint is a
-  feature; tooling belongs in `tools/`, which is a separate module.
+- Add a dependency to the root `go.mod`. **It currently has none, and that is
+  the target state.** The core is standard library only; tooling belongs in
+  `tools/`, a separate module.
+- Import OpenTelemetry directly. See Telemetry above; use `telemetry.Tracer`.
 - Weaken a test to make it pass. Fix the code, or change the rule in
   `internal/arch` deliberately and say why in the commit.
 - Replace the standard AES-128 cipher suite. A second suite is registered

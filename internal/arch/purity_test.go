@@ -34,7 +34,7 @@ func TestPureLayersDoNoIO(t *testing.T) {
 			continue
 		}
 		t.Run(name, func(t *testing.T) {
-			for _, file := range goFiles(t, filepath.Join(root, name)) {
+			for _, file := range goFiles(t, filepath.Join(root, spec.dir)) {
 				for _, imp := range imports(t, file) {
 					if slices.Contains(ioPackages, imp) {
 						t.Errorf(
@@ -57,7 +57,7 @@ func TestPureLayersDoNoIO(t *testing.T) {
 // it, and this test exists so that "beside" never quietly becomes "instead of".
 func TestStandardCipherSuiteIsReachable(t *testing.T) {
 	root := repoRoot(t)
-	if len(goFiles(t, filepath.Join(root, "secure"))) <= 1 {
+	if len(goFiles(t, filepath.Join(root, layers["secure"].dir))) <= 1 {
 		t.Skip("secure not implemented yet; enabled in Phase 2")
 	}
 	t.Error("Phase 2 must replace this with an assertion that the standard " +

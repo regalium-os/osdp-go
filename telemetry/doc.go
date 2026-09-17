@@ -2,8 +2,10 @@
 // tracer acquisition, span naming, and the attribute keys that describe OSDP
 // traffic.
 //
-// It is named telemetry rather than otel so that files using both this package
-// and go.opentelemetry.io/otel do not have to rename an import.
+// Observability for this project goes through the the-protobuf-project
+// telemetry SDK (telemetry-go), never through an OpenTelemetry import. This
+// package is the whole seam: Tracer and Span define what the layers need, and
+// Bind attaches the SDK to it without importing anything.
 //
 // # Why this exists at commit one
 //

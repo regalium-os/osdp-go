@@ -21,9 +21,7 @@ const maxFileLines = 200
 // omission: protobuf/ and flatbuffers/ output is machine-written and is held to
 // schema review instead.
 var sizedDirs = []string{
-	"frame", "cmd", "secure", "bus", "transport",
-	"driver", "provider", "telemetry",
-	"internal", "tools",
+	"internal", "telemetry", "tools",
 }
 
 // TestSourceFilesAreWithinLineLimit keeps files readable, tests included.
@@ -31,8 +29,13 @@ func TestSourceFilesAreWithinLineLimit(t *testing.T) {
 	root := repoRoot(t)
 
 	var checked int
+	files := rootGoFiles(t, root)
 	for _, dir := range sizedDirs {
-		for _, file := range allGoFiles(t, filepath.Join(root, dir)) {
+		files = append(files, allGoFiles(t, filepath.Join(root, dir))...)
+	}
+
+	{
+		for _, file := range files {
 			checked++
 
 			content, err := os.ReadFile(file)

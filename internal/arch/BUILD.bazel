@@ -4,13 +4,16 @@ go_test(
     name = "arch_test",
     srcs = [
         "arch_test.go",
+        "deps_test.go",
         "purity_test.go",
         "size_test.go",
         "support_test.go",
     ],
-    # The conformance tests read the repository's source files rather than its
-    # build graph, so the sources must be declared as inputs. Without this the
-    # tests run against an empty tree and pass on nothing.
+    # These tests read the repository's source files rather than its build
+    # graph, so the sources must be declared as inputs and the test must run
+    # from the workspace root. Without both, they run against an empty tree.
+    # The `keep` directives stop Gazelle from pruning them on regeneration --
+    # it has already done so once.
     # keep
     data = ["//:all_go_sources"],
     # keep

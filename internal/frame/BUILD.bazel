@@ -1,0 +1,36 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "frame",
+    srcs = [
+        "check.go",
+        "control.go",
+        "decode.go",
+        "doc.go",
+        "encode.go",
+        "errors.go",
+        "frame.go",
+    ],
+    importpath = "github.com/regalium-os/osdp-go/internal/frame",
+    visibility = ["//:__subpackages__"],
+    deps = ["//telemetry"],
+)
+
+go_test(
+    name = "frame_test",
+    srcs = [
+        "check_test.go",
+        "decode_test.go",
+        "fixture_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    deps = [":frame"],
+)
+
+# Read as data by the conformance tests; without it they would run blind.
+# keep
+filegroup(
+    name = "sources",
+    srcs = glob(["**/*.go"]),
+    visibility = ["//visibility:public"],
+)
