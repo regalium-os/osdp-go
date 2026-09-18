@@ -109,6 +109,7 @@ for event := range panel.Events() {
     case osdp.EventSecure:        // a secure channel is up
     case osdp.EventSecureFailed:  // it could not be, or it was torn down
     case osdp.EventBusy:          // the device asked to be given a moment
+    case osdp.EventCommunication: // the device moved address or baud; persist it
     }
 }
 ```
@@ -212,6 +213,26 @@ handshake replay deterministically in a test.
 
 ### Commissioning
 
+Readers ship answering to address 0, so a line of them has to be given distinct
+addresses one at a time before it can carry traffic at all:
+
+```go
+panel.SetCommunication(ctx, 0x00, osdp.Communication{Address: 0x05, Baud: 9600})
+```
+
+The device applies the change *after* replying, so from that moment it is a
+different device as far as the line is concerned — the bus follows it, restarts
+the exchange and re-enrols. Believe the reply rather than the request: a device
+may clamp a baud rate it cannot reach or take an address other than the one
+asked for, and `EventCommunication` carries what it actually adopted. Persist
+that, because there is no command for asking a device where it is.
+
+An address another device already uses is refused, as is the broadcast address.
+Two devices on one address is not a state the protocol can recover from — both
+answer everything, their replies collide, and the panel sees corruption it
+cannot attribute.
+
+
 A factory-fresh reader answers to SCBK-D, the default key printed in the
 specification — a channel built on it is authenticated against public knowledge,
 which is to say not authenticated at all. It exists so a panel can reach the
@@ -302,12 +323,12 @@ including what has to exist *around* this library before a phone opens a door.
 | Events — card, keypad, status, NAK, vendor, lifecycle | complete |
 | Capability negotiation and vendor quirks | complete |
 | Transports — TCP, in-memory pipe | **no serial/RS-485 driver yet** |
-| `osdp_COMSET` — change baud rate or address | not implemented |
+| `osdp_COMSET` — change baud rate or address | complete; refuses a duplicate address |
 | `osdp_BUSY` — a device asking you to retry | complete; command retried, not lost |
-| `MaxMessageSize` — respect what a device says it can receive | **negotiated but never enforced** |
+| `MaxMessageSize` — respect what a device says it can receive | complete; oversized commands refused at the call site |
 | File transfer, biometrics, PIV | not implemented |
-| Peripheral-device (reader) runtime | not implemented |
-| Service layer — something for an app to call | not implemented; see [ROADMAP.md](ROADMAP.md) |
+| Peripheral-device (reader) runtime | `internal/pd` — plaintext state machine with reply caching; not yet wired to a port |
+| Service layer — something for an app to call | `EventService` + in-memory store in `protobuf/service`; no durable store |
 | Persistence — keys and device state across a restart | not implemented |
 
 ### Building a device

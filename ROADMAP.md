@@ -22,6 +22,8 @@ build if it regresses, not that somebody checked once.
 | Poll cycle — enrolment, online/offline, resync | **done** | table tests on a fake clock, no hardware |
 | Retransmission — an unanswered command is retried, not lost | **done** | repeats the sequence number, so a device cannot act twice |
 | `osdp_BUSY` — a device asking for a moment | **done** | command reclaimed, one-cycle backoff so polling continues |
+| `MaxMessageSize` — refuse what a device cannot receive | **done** | estimate pinned against real frames, secure overhead included |
+| `osdp_COMSET` — commission a device onto its own address | **done** | bus follows the device; duplicate addresses refused |
 | Secure Channel — handshake, authenticated + encrypted traffic | **done** | driven against a real `RolePD` session, not a mock |
 | Key install (`osdp_KEYSET`) — commission off SCBK-D | **done** | refuses to transmit without a channel, twice |
 | Commands — output, LED, buzzer, text, status requests | **done** | wire layouts asserted against the spec |
@@ -29,7 +31,9 @@ build if it regresses, not that somebody checked once.
 | Runtime — `Run`/`Close` lifecycle, backpressure, cancellation | **done** | no goroutine outlives `Run` |
 | Protobuf domain schema + FlatBuffers mirror + drift gate | **done** | three-way check: proto, ordinal ledger, mirror |
 | Conformance gates — layering, purity, file size, licence, cgo | **done** | `internal/arch`, fails loudly on an unreadable tree |
-| A runnable panel — demo mode, wire tracing, door release | **done** | `examples/panel`; `-demo` needs no hardware |
+| A runnable panel — demo mode, wire tracing, door release, commissioning | **done** | `examples/panel`; `-demo` needs no hardware |
+| Peripheral-device state machine with reply caching | **done** | `internal/pd`; plaintext only |
+| `EventService` — Get, List, pagination, bounded store | **done** | `protobuf/service`; in-memory only |
 
 148 hand-written Go files, 60 test files, 4 fuzz targets, 3 fixture corpora,
 three modules all built and tested in CI.
@@ -38,18 +42,19 @@ three modules all built and tested in CI.
 
 ## 2. Left in this library
 
-### 2.1 Correctness — do these first
+### 2.1 Correctness
 
-| | Why it matters |
-| --- | --- |
-| **`MaxMessageSize` is never enforced** | The device reports what it can receive and the bus never consults it. A long `osdp_TEXT` or vendor message can exceed a reader's buffer and be silently dropped by the device. |
+Both items here are done. Left in place because what they were is worth knowing:
+`osdp_BUSY` was read as success, and a device's reported receive buffer was
+negotiated and never consulted — an oversized command retried against a silence
+forever, looking like a reader that answered polls and nothing else.
 
 ### 2.2 Reaching real hardware
 
 | | Notes |
 | --- | --- |
 | **RS-485 serial driver** | Most readers are RS-485. A serial-to-Ethernet converter works **today** via `DialTCP` — that is the viable path without writing this. Doing it properly means termios ioctls by hand to keep the no-cgo rule, and belongs in a separate opt-in module. |
-| **`osdp_COMSET`** | Change a device's address and baud rate. Needed to commission a bus where every reader ships on address 0. |
+| ~~`osdp_COMSET`~~ | **done** — moves a device's address and baud, follows the reply rather than the request, refuses a duplicate address. |
 | ~~A runnable example~~ | **done** — `examples/panel`, with `-demo` for no hardware, `-trace` for the octets, `-unlock` for the full loop. |
 
 ### 2.3 Protocol surface not yet needed
@@ -59,7 +64,7 @@ Deliberately unbuilt. Each is real work and none blocks a door opening.
 - **File transfer** (`osdp_FILETRANSFER`) and multi-part message reassembly — firmware updates over the bus.
 - **Biometrics** (`osdp_BIOREAD` / `osdp_BIOMATCH`).
 - **PIV / advanced auth** (`osdp_PIVDATA`, `GENAUTH`, `CRAUTH`) — federal deployments.
-- **Peripheral-device runtime** — the codec is direction-agnostic and `secure` implements `RolePD` in full; what is missing is the sequencing and reply caching. See the README.
+- **Peripheral-device runtime** — **substantially done**: `internal/pd` implements the reader's state machine, including the reply cache §5.7 requires so a repeated sequence number replays rather than re-executes. Still to do: the Secure Channel path (a documented seam, not a stub) and wiring it to a port so it can answer a real line.
 
 ---
 
@@ -69,7 +74,7 @@ None of this is OSDP. All of it is between a working bus and a working product.
 
 | | Why |
 | --- | --- |
-| **`EventService` / `DeviceService` implementation** | The protos and gRPC stubs exist; there is **no server**. Nothing for a backend or an app to call. This is the single biggest gap between here and a mobile app seeing anything. |
+| **`EventService`** | **Done** — `protobuf/service`: `GetEvent`, `ListEvents`, AIP-158 pagination, a `Store` port and a bounded in-memory implementation. `DeviceService` is still unimplemented, and there is **no durable store** — `MemoryStore` promises recency, not retention. |
 | **Persistence** | The panel is entirely in-memory. Restart it and every device key, capability set and contact baseline is gone — and a device whose installed key was never written down is a device nobody can talk to. `EventKeyInstalled` exists precisely so an application can persist; nothing consumes it yet. |
 | **Credential decision logic** | This library reports that 26 bits arrived at reader 0. Whether that opens the door is the panel application's job: cardholder database, schedules, anti-passback, offline behaviour. |
 | **Audit storage** | `protobuf/record` converts events to domain records. Where they go is unbuilt. |
@@ -137,7 +142,8 @@ In order, and each is independently useful:
 
 1. ~~`osdp_BUSY`~~ — **done**.
 2. ~~A runnable example against a converter~~ — **done**.
-3. **`EventService` + persistence** — unblocks the app. Nothing downstream can
-   start without it.
+3. **A durable store behind `EventService`** — the service and its `Store` port
+   exist; `MemoryStore` loses everything on restart, which is not an audit
+   trail. This is now the gap, rather than the service itself.
 4. **QR end to end** — the shortest honest path to "a phone opened a door".
-5. **`MaxMessageSize`, `osdp_COMSET`, serial** — as the deployment demands them.
+5. **A serial driver** — if a converter is not acceptable for the deployment.

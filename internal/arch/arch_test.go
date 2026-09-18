@@ -57,6 +57,15 @@ var layers = map[string]layer{
 	},
 	"driver": {dir: "internal/driver", allowed: []string{"transport"}, pure: false},
 
+	// pd is the peripheral-device side: the state machine a reader runs, as
+	// distinct from the panel that polls it. It is an edge layer for the same
+	// reason panel is -- it owns a port and answers in real time.
+	"pd": {
+		dir:     "internal/pd",
+		allowed: []string{"frame", "cmd", "secure", "transport"},
+		pure:    false,
+	},
+
 	// panel is the runtime: the one component that owns a port, consults a
 	// clock and turns the bus's decisions into traffic. It is an edge layer
 	// for exactly that reason, and it depends on the core rather than the

@@ -84,3 +84,19 @@ func TestTheTwoStatusEnumerationsAgree(t *testing.T) {
 		}
 	}
 }
+
+// TestAStatusChangeWithNoContactsIsAnError.
+//
+// The bus never produces one -- a status reply where nothing moved is not an
+// event -- so an empty one means the caller built something the runtime does
+// not. Returning no records and no error would let that pass as a successful
+// conversion of nothing, which is the shape of bug that shows up as a gap in an
+// audit trail months later.
+func TestAStatusChangeWithNoContactsIsAnError(t *testing.T) {
+	ev := osdp.Event{Kind: osdp.EventStatusChange, Device: &osdp.Device{}}
+
+	got, err := record.FromEvent(ev, "", time.Now())
+	if err == nil {
+		t.Errorf("FromEvent produced %d records and no error for an empty change", len(got))
+	}
+}

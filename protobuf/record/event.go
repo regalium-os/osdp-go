@@ -68,6 +68,14 @@ func FromEvent(ev osdp.Event, name string, at time.Time, opts ...Option) ([]*eve
 	}
 
 	if ev.Kind == osdp.EventStatusChange {
+		// The bus never reports a change in which nothing changed -- a status
+		// reply where no contact moved produces no event at all. An empty one
+		// here therefore means the caller built an Event the runtime does not
+		// produce, and returning no records and no error would let that pass
+		// as a successful conversion of nothing.
+		if len(ev.Status) == 0 {
+			return nil, fmt.Errorf("record: status change carries no contacts")
+		}
 		return statusRecords(ev, base), nil
 	}
 

@@ -29,6 +29,8 @@ type config struct {
 	key        osdp.BaseKey
 	secure     bool
 	unlock     time.Duration
+	setAddr    int
+	setBaud    uint32
 }
 
 func parseFlags() config {
@@ -43,6 +45,11 @@ func parseFlags() config {
 		demo   = flag.Bool("demo", false, "run against a simulated reader, with no hardware")
 		key    = flag.String("key", "", "32 hex characters: the SCBK to attempt a secure channel with")
 		unlock = flag.Duration("unlock", 0, "release output 0 for this long when a card is read")
+
+		setAddr = flag.Int("set-address", -1,
+			"move the device to this address once it is online, then exit")
+		setBaud = flag.Uint("set-baud", 0,
+			"with -set-address, the line speed to adopt (default: keep -baud)")
 	)
 	flag.Parse()
 
@@ -60,7 +67,22 @@ func parseFlags() config {
 		turnaround: *turnaround,
 		trace:      *trace,
 		demo:       *demo,
+		setAddr:    *setAddr,
+		setBaud:    uint32(*setBaud),
 		unlock:     *unlock,
+	}
+
+	if cfg.setAddr >= 0 {
+		if len(cfg.devices) != 1 {
+			fmt.Fprintln(os.Stderr,
+				"panel: -set-address needs exactly one -devices entry.\n"+
+					"  Readers ship answering to address 0, so a line of them all answer\n"+
+					"  at once. Commission them one at a time, with one on the line.")
+			os.Exit(2)
+		}
+		if cfg.setBaud == 0 {
+			cfg.setBaud = uint32(cfg.baud)
+		}
 	}
 
 	if *key != "" {

@@ -29,6 +29,7 @@ filegroup(
         "//internal/driver:sources",
         "//internal/frame:sources",
         "//internal/panel:sources",
+        "//internal/pd:sources",
         "//internal/provider:sources",
         "//internal/secure:sources",
         "//internal/transport:sources",

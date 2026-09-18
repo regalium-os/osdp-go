@@ -3,7 +3,10 @@
 
 package osdp
 
-import "github.com/regalium-os/osdp-go/internal/panel"
+import (
+	"github.com/regalium-os/osdp-go/internal/bus"
+	"github.com/regalium-os/osdp-go/internal/panel"
+)
 
 // Runtime types.
 //
@@ -80,6 +83,25 @@ var (
 	// ErrNotRunning means a command was submitted to a panel whose Run has
 	// returned.
 	ErrNotRunning = panel.ErrNotRunning
+
+	// ErrMessageTooLarge means a command is bigger than the device said it can
+	// receive in its osdp_CAP reply.
+	//
+	// It is a refusal rather than a best effort: a device cannot reply to a
+	// frame it could not receive, so the panel would see a silence, retry with
+	// the same oversized frame, and leave the command at the head of that
+	// device's queue forever.
+	ErrMessageTooLarge = bus.ErrMessageTooLarge
+
+	// ErrAddressInUse means a device was asked to move onto an address another
+	// device on the same line already answers to. Two devices sharing an
+	// address is not a state the protocol can recover from.
+	ErrAddressInUse = bus.ErrAddressInUse
+
+	// ErrNotADeviceAddress means an address outside 0x00 to 0x7E. The
+	// broadcast address is excluded: a device answering on it would reply to
+	// every command meant for every other device.
+	ErrNotADeviceAddress = bus.ErrInvalidAddress
 
 	// ErrNoDevices means a panel was asked to run a bus with no addresses on
 	// it: a configuration mistake rather than a fault on the line.

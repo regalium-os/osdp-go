@@ -37,6 +37,14 @@ const (
 // commands below exist for the other case: establishing what a device believes
 // right now, after a panel restart or a line that has been quiet.
 
+// Communication is a device's address and line speed, as carried by
+// osdp_COMSET and confirmed by osdp_COM.
+type Communication = cmd.Communication
+
+// StandardBaudRates are the line speeds the specification defines. A device is
+// required to support 9600 and negotiates upward from there.
+var StandardBaudRates = cmd.StandardBaudRates
+
 // LocalStatusCommand asks a device for its tamper and power state (osdp_LSTAT).
 func LocalStatusCommand() Message { return cmd.LocalStatusCommand() }
 

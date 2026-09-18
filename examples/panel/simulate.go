@@ -59,9 +59,10 @@ func simulateReader(ctx context.Context, port osdp.Port, cfg config) {
 // enough that the output stays readable.
 func simulatedAnswer(command osdp.Frame, polls int) osdp.Frame {
 	const (
-		codeID   = 0x61
-		codeCap  = 0x62
-		codePoll = 0x60
+		codeID     = 0x61
+		codeCap    = 0x62
+		codePoll   = 0x60
+		codeComSet = 0x6E
 	)
 
 	switch command.Code {
@@ -80,6 +81,15 @@ func simulatedAnswer(command osdp.Frame, polls int) osdp.Frame {
 			0x0A, 0x80, 0x00, // 128-octet buffer
 			0x0D, 0x01, 0x01, // one reader
 		})
+
+	case codeComSet:
+		// A real device confirms what it adopted and applies the change after
+		// replying. Echoing the request is the simple case; a device that
+		// could not manage the requested baud would answer with the one it
+		// settled for, and the panel is built to believe the reply rather than
+		// the request. Worth knowing that this simulator does not exercise
+		// that difference.
+		return simulatedReply(command, 0x54, append([]byte(nil), command.Data...))
 
 	case codePoll:
 		if polls%50 == 0 {

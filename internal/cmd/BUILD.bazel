@@ -8,6 +8,7 @@ go_library(
     srcs = [
         "capabilities.go",
         "codes.go",
+        "comset.go",
         "doc.go",
         "errors.go",
         "keyset.go",

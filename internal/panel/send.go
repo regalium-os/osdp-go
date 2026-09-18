@@ -31,10 +31,11 @@ var (
 // on the same goroutine: it inspects the device's secure session, and the bus
 // is not safe to touch from anywhere else.
 type request struct {
-	addr frame.Address
-	msg  cmd.Message
-	key  *secure.BaseKey
-	done chan error
+	addr  frame.Address
+	msg   cmd.Message
+	key   *secure.BaseKey
+	comms *cmd.Communication
+	done  chan error
 }
 
 // Send queues a command for one device and returns once the runtime has
@@ -57,7 +58,8 @@ type request struct {
 //
 // Send blocks until the run loop accepts the command, and returns ctx.Err() if
 // the context is done first. It returns ErrNotRunning once Run has returned,
-// and ErrUnknownDevice for an address this panel does not poll.
+// ErrUnknownDevice for an address this panel does not poll, and
+// ErrMessageTooLarge for a command bigger than that device said it can receive.
 //
 // # It blocks for longer than the queue being full
 //
@@ -120,45 +122,14 @@ func (p *Panel) queue(req request) error {
 		if d.Address != req.addr {
 			continue
 		}
-		if req.key != nil {
+		switch {
+		case req.key != nil:
 			return p.bus.InstallKey(d, *req.key)
+		case req.comms != nil:
+			return p.bus.SetCommunication(d, *req.comms)
+		default:
+			return p.bus.Send(d, req.msg)
 		}
-		p.bus.Send(d, req.msg)
-		return nil
 	}
 	return ErrUnknownDevice
-}
-
-// InstallKey moves a device onto a new Secure Channel base key.
-//
-// The device must already have an established Secure Channel: the command's
-// payload is the key, so on an unencrypted line this would publish the site key
-// to anyone on the wire. That is refused here and again before the frame goes
-// out, in case the channel drops in between.
-//
-// Like Send, it returns once the runtime has accepted the request. The device's
-// acknowledgement arrives on the event stream as EventKeyInstalled -- persist
-// the key then, because the bus adopts it immediately but a later run of this
-// process starts from whatever the application's keyring says.
-//
-// key is copied. Zero the caller's array once it has been persisted.
-func (p *Panel) InstallKey(ctx context.Context, addr frame.Address, key secure.BaseKey) error {
-	req := request{addr: addr, key: &key, done: make(chan error, 1)}
-
-	select {
-	case p.requests <- req:
-	case <-p.stopped:
-		return ErrNotRunning
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	select {
-	case err := <-req.done:
-		return err
-	case <-p.stopped:
-		return ErrNotRunning
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }

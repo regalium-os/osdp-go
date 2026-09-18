@@ -19,3 +19,14 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260904194346-d0f1323225a4 // indirect
 )
+
+// The library this schema module converts for. record and service both import
+// it, so without this the module builds only inside go.work and not at all for
+// anyone who fetches it.
+//
+// The replace is what makes v0.0.0 resolvable: the root module carries no tags
+// yet. Drop both lines once it is released and this becomes an ordinary
+// version requirement.
+require github.com/regalium-os/osdp-go v0.0.0
+
+replace github.com/regalium-os/osdp-go => ../

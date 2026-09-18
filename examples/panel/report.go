@@ -26,8 +26,20 @@ func report(ctx context.Context, p *osdp.Panel, cfg config) {
 			fmt.Sprintf("%02X", byte(event.Device.Address)),
 			line)
 
-		if event.Kind == osdp.EventCardRead && cfg.unlock > 0 {
+		switch {
+		case event.Kind == osdp.EventCardRead && cfg.unlock > 0:
 			releaseDoor(ctx, p, event.Device.Address, cfg.unlock)
+
+		case event.Kind == osdp.EventOnline && cfg.setAddr >= 0:
+			commission(ctx, p, event.Device.Address, cfg)
+
+		case event.Kind == osdp.EventCommunication:
+			// The device has moved. Nothing further this tool can usefully do:
+			// carrying on would mean the converter needs the new speed too,
+			// which is outside this program's control.
+			fmt.Println("\ncommissioned. re-run with -devices " +
+				fmt.Sprintf("%d", event.Communication.Address))
+			return
 		}
 	}
 }
@@ -86,6 +98,11 @@ func describe(e osdp.Event) string {
 	case osdp.EventKeyInstalled:
 		return "new base key accepted; persist it"
 
+	case osdp.EventCommunication:
+		return fmt.Sprintf("MOVED from address %02X to %02X at %d baud — persist this, "+
+			"there is no command for asking a device where it is",
+			byte(e.PreviousAddr), e.Communication.Address, e.Communication.Baud)
+
 	case osdp.EventManufacturer:
 		return fmt.Sprintf("vendor message: OUI %06X, %d octets",
 			e.Manufacturer.OUI, len(e.Manufacturer.Body))
@@ -125,6 +142,21 @@ func describeStatus(changes []osdp.StatusChange) string {
 		out += fmt.Sprintf("  %s[%d]=%s", c.Kind, c.Index, state)
 	}
 	return out
+}
+
+// commission moves a device onto its configured address.
+//
+// It waits for the device to come online first, because an address change is
+// the one command that has to be sent to a device the panel is certain it is
+// talking to: get it wrong and the reader is still there, still working, and
+// unreachable.
+func commission(ctx context.Context, p *osdp.Panel, addr osdp.Address, cfg config) {
+	to := osdp.Communication{Address: byte(cfg.setAddr), Baud: cfg.setBaud}
+
+	fmt.Printf("              moving to address %02X at %d baud\n", to.Address, to.Baud)
+	if err := p.SetCommunication(ctx, addr, to); err != nil {
+		fmt.Printf("              refused: %v\n", err)
+	}
 }
 
 // releaseDoor sends the pair of commands that grant access.

@@ -3,7 +3,10 @@
 
 package bus
 
-import "github.com/regalium-os/osdp-go/internal/cmd"
+import (
+	"github.com/regalium-os/osdp-go/internal/cmd"
+	"github.com/regalium-os/osdp-go/internal/frame"
+)
 
 // Kind classifies what an exchange produced.
 type Kind uint8
@@ -48,6 +51,14 @@ const (
 	// overloaded or stuck, and its queue is growing. Device.Queued says by how
 	// much.
 	KindBusy
+	// KindCommunication means a device adopted a new address or line speed.
+	//
+	// Event.Communication is what it says it adopted, which is not always what
+	// it was asked for, and Event.PreviousAddr is where it used to be. Persist
+	// the new address: a device that moved and was not written down is one the
+	// next run of this process cannot find, and there is no command for asking
+	// a device what address it is on.
+	KindCommunication
 	// KindKeyInstalled means a device accepted a new Secure Channel base key.
 	//
 	// Persist it: the bus is already using it, but a later run of this process
@@ -102,6 +113,14 @@ type Event struct {
 	// Status is valid when Kind is KindStatusChange: the contacts that moved,
 	// never an empty slice. A report in which nothing moved is not an event.
 	Status []cmd.StatusChange
+
+	// Communication is valid when Kind is KindCommunication: the address and
+	// baud rate the device reports it has adopted.
+	Communication cmd.Communication
+
+	// PreviousAddr is valid when Kind is KindCommunication: where the device
+	// was before it moved.
+	PreviousAddr frame.Address
 
 	// DefaultKey is valid when Kind is KindSecure. True means the session is
 	// running on SCBK-D and the line has no confidentiality worth the name.
@@ -160,6 +179,8 @@ func (k Kind) String() string {
 		return "status_change"
 	case KindBusy:
 		return "busy"
+	case KindCommunication:
+		return "communication"
 	case KindKeyInstalled:
 		return "key_installed"
 	case KindSecureFailed:

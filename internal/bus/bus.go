@@ -80,8 +80,17 @@ func (b *Bus) Devices() []*Device { return b.devices }
 // A device that is offline keeps its queued commands rather than losing them --
 // see Device.Queued, which is how a caller notices a reader that is not coming
 // back.
-func (b *Bus) Send(d *Device, m cmd.Message) {
+//
+// It returns ErrMessageTooLarge when the command will not fit in the buffer the
+// device reported in osdp_CAP. That is a refusal rather than a best effort: a
+// device cannot reply to a frame it could not receive, so an oversized command
+// would retry against a silence forever. See checkSize.
+func (b *Bus) Send(d *Device, m cmd.Message) error {
+	if err := b.checkSize(d, m); err != nil {
+		return err
+	}
 	d.enqueue(m)
+	return nil
 }
 
 // Line returns the physical parameters this bus was built for.

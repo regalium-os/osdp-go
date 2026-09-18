@@ -129,6 +129,13 @@ const (
 	// the panel asking it questions. A device reporting this every cycle is
 	// one to go and look at, and Device.Queued says how far behind it is.
 	EventBusy = bus.KindBusy
+
+	// EventCommunication means a device adopted a new address or line speed.
+	//
+	// Event.Communication is what it says it adopted, which is not always what
+	// it was asked for, and Event.PreviousAddr is where it used to be. Persist
+	// the new address: there is no command for asking a device where it is.
+	EventCommunication = bus.KindCommunication
 )
 
 // OfflineThreshold is how many consecutive unanswered polls mark a device
