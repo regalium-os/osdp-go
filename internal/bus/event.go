@@ -40,6 +40,14 @@ const (
 	// tamper switch tripped, a strike energised. Only what changed is
 	// reported; see Device.statusChanges for what the first report does.
 	KindStatusChange
+	// KindBusy means a device received a command and could not act on it yet.
+	//
+	// The command is not lost: it goes back on the queue and the next exchange
+	// is a poll, so the device gets the moment it asked for. A device
+	// reporting this on every cycle is one to go and look at -- it is either
+	// overloaded or stuck, and its queue is growing. Device.Queued says by how
+	// much.
+	KindBusy
 	// KindKeyInstalled means a device accepted a new Secure Channel base key.
 	//
 	// Persist it: the bus is already using it, but a later run of this process
@@ -150,6 +158,8 @@ func (k Kind) String() string {
 		return "secure"
 	case KindStatusChange:
 		return "status_change"
+	case KindBusy:
+		return "busy"
 	case KindKeyInstalled:
 		return "key_installed"
 	case KindSecureFailed:

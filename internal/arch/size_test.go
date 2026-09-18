@@ -22,13 +22,16 @@ const maxFileLines = 200
 
 // sizedDirs are the trees the limit applies to.
 //
+// examples/ is included because a reader learns the shape of this library from
+// it, and an example nobody can hold in their head teaches the wrong lesson.
+//
 // protobuf/ is included for the hand-written code in it -- the conversion to
 // the domain records lives there, because the library itself must stay
 // dependency-free. Its generated output is excluded by the walker, which skips
 // any directory named "generated": machine-written code is held to schema
 // review rather than to a line limit.
 var sizedDirs = []string{
-	"internal", "protobuf", "telemetry", "tools",
+	"examples", "internal", "protobuf", "telemetry", "tools",
 }
 
 // TestSourceFilesAreWithinLineLimit keeps files readable, tests included.

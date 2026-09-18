@@ -30,9 +30,10 @@ func TestACommandSurvivesALostReply(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	events := collect(p)
 	done := make(chan error, 1)
 	go func() { done <- p.Run(ctx) }()
-	waitFor(t, p.Events(), bus.KindOnline)
+	events.await(t, bus.KindOnline)
 
 	if err := p.Send(ctx, 0x00, cmd.OutputCommand(cmd.Output{
 		Number: 0, Control: cmd.OutputTimedOn, Timer: 5 * time.Second,
@@ -62,9 +63,10 @@ func TestInstallKeyRefusesOnAPlaintextLine(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	events := collect(p)
 	done := make(chan error, 1)
 	go func() { done <- p.Run(ctx) }()
-	waitFor(t, p.Events(), bus.KindOnline)
+	events.await(t, bus.KindOnline)
 
 	err := p.InstallKey(ctx, 0x00, secure.DefaultBaseKey)
 	if !errors.Is(err, bus.ErrNotSecure) {

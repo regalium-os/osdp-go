@@ -63,6 +63,12 @@ func KindOf(kind osdp.EventKind) (eventpbv1.EventKind, error) {
 // converted rather than cast: equal today is not a guarantee, and a silent
 // off-by-one between "tamper" and "power" is the kind of mistake that only
 // surfaces in an incident review.
+// EventBusy is deliberately absent from kinds above. A device asking the panel
+// to wait is a retry the poll cycle handles by itself, not something that
+// happened at a door -- and an audit trail that recorded it would be reporting
+// the panel's internal bookkeeping as building activity. A panel that wants to
+// alert on a persistently busy reader has the event stream for that.
+
 var statusKinds = map[osdp.StatusKind]eventpbv1.StatusKind{
 	osdp.StatusInput:  eventpbv1.StatusKind_STATUS_KIND_INPUT,
 	osdp.StatusOutput: eventpbv1.StatusKind_STATUS_KIND_OUTPUT,

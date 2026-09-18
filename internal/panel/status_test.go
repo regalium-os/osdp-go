@@ -27,10 +27,11 @@ func TestATamperReachesTheApplication(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	events := collect(p)
 	done := make(chan error, 1)
 	go func() { done <- p.Run(ctx) }()
 
-	ev := waitFor(t, p.Events(), bus.KindStatusChange)
+	ev := events.await(t, bus.KindStatusChange)
 	var tampered bool
 	for _, c := range ev.Status {
 		if c.Kind == cmd.StatusTamper && c.Active {
@@ -73,9 +74,10 @@ func TestAMessageReachesTheDisplay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	events := collect(p)
 	done := make(chan error, 1)
 	go func() { done <- p.Run(ctx) }()
-	waitFor(t, p.Events(), bus.KindOnline)
+	events.await(t, bus.KindOnline)
 
 	if err := p.Send(ctx, 0x00, cmd.TextCommand(cmd.TextDisplay{
 		Content: "DOOR SECURE",
@@ -90,6 +92,36 @@ func TestAMessageReachesTheDisplay(t *testing.T) {
 	if got.Data[3] != 1 || got.Data[4] != 1 {
 		t.Errorf("origin = %d/%d, want 1/1", got.Data[3], got.Data[4])
 	}
+
+	cancel()
+	<-done
+}
+
+// TestABusyDeviceIsReportedAndRetried, through the whole runtime.
+//
+// The reader says busy once and then accepts. The command must arrive, and the
+// application must be told the device was busy rather than left to infer it.
+func TestABusyDeviceIsReportedAndRetried(t *testing.T) {
+	p, device := newPanel(t, 0x00)
+	rec := &recorder{}
+	go respond(t, device, rec.busyOnce(cmd.Out))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	events := collect(p)
+	done := make(chan error, 1)
+	go func() { done <- p.Run(ctx) }()
+	events.await(t, bus.KindOnline)
+
+	if err := p.Send(ctx, 0x00, cmd.OutputCommand(cmd.Output{
+		Number: 0, Control: cmd.OutputTimedOn,
+	})); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+
+	events.await(t, bus.KindBusy)
+	rec.waitForCount(t, cmd.Out, 2) // the busy attempt, then the retry
 
 	cancel()
 	<-done

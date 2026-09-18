@@ -1,0 +1,24 @@
+# Copyright 2026 RegaliumOS™.
+# SPDX-License-Identifier: Apache-2.0
+
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "panel_lib",
+    srcs = [
+        "config.go",
+        "main.go",
+        "report.go",
+        "simulate.go",
+        "trace.go",
+    ],
+    importpath = "github.com/regalium-os/osdp-go/examples/panel",
+    visibility = ["//visibility:private"],
+    deps = ["//:osdp-go"],
+)
+
+go_binary(
+    name = "panel",
+    embed = [":panel_lib"],
+    visibility = ["//visibility:public"],
+)

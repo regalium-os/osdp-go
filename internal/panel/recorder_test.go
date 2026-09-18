@@ -51,6 +51,20 @@ func (r *recorder) swallowOne(code cmd.Code) func(frame.Frame) frame.Frame {
 	}
 }
 
+// busyOnce answers the first command of the given code with osdp_BUSY, as a
+// reader mid-cryptogram does, and behaves normally thereafter.
+func (r *recorder) busyOnce(code cmd.Code) func(frame.Frame) frame.Frame {
+	var refused bool
+	return func(command frame.Frame) frame.Frame {
+		got := r.answer(command)
+		if cmd.Code(command.Code) == code && !refused {
+			refused = true
+			return reply(command.Address, command.Control.Sequence(), cmd.Busy, nil)
+		}
+		return got
+	}
+}
+
 // waitForCount blocks until the device has been sent code at least n times.
 func (r *recorder) waitForCount(t *testing.T, code cmd.Code, n int) {
 	t.Helper()

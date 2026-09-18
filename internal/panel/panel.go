@@ -98,6 +98,9 @@ func New(b *bus.Bus, port transport.Port, opts ...Option) *Panel {
 //
 // A cancelled context always wins over a full buffer, so a stalled panel still
 // shuts down promptly.
+//
+// A stalled cycle also stops accepting commands, so a consumer that stops
+// reading blocks any concurrent Send until the context is cancelled. See Send.
 func (p *Panel) Events() <-chan bus.Event { return p.events }
 
 // Run drives the line until ctx is cancelled or the port fails.

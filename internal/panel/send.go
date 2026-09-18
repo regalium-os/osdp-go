@@ -55,9 +55,23 @@ type request struct {
 // executing. This is the seam that keeps the bus itself single-threaded: the
 // request crosses to the run loop here, and the bus is only ever touched by it.
 //
-// Send blocks while the runtime's queue is full, and returns ctx.Err() if the
-// context is done first. It returns ErrNotRunning once Run has returned, and
-// ErrUnknownDevice for an address this panel does not poll.
+// Send blocks until the run loop accepts the command, and returns ctx.Err() if
+// the context is done first. It returns ErrNotRunning once Run has returned,
+// and ErrUnknownDevice for an address this panel does not poll.
+//
+// # It blocks for longer than the queue being full
+//
+// The run loop accepts commands between transactions, so anything that stops
+// the poll cycle stops Send with it -- and the likeliest such thing is not a
+// full request queue but an event consumer that has stopped reading. The
+// runtime halts the cycle when the event buffer fills, by design (see Events),
+// and a halted cycle never gets back to the requests.
+//
+// A caller that reads one event and then stops, while another goroutine sends,
+// therefore deadlocks: each is waiting for the other, and Send has no deadline
+// of its own -- only the context ends it. **Drain Events continuously for as
+// long as Run is executing.** It is the runtime's one real obligation on a
+// caller, and it is easy to meet by accident and easy to break by accident.
 //
 // m.Data is retained until the command is sent. Do not modify it afterwards.
 func (p *Panel) Send(ctx context.Context, addr frame.Address, m cmd.Message) error {

@@ -7,6 +7,7 @@ go_library(
     name = "bus",
     srcs = [
         "bus.go",
+        "busy.go",
         "compose.go",
         "device.go",
         "doc.go",
@@ -45,6 +46,7 @@ go_test(
     name = "bus_test",
     srcs = [
         "bus_test.go",
+        "busy_test.go",
         "compose_test.go",
         "delivered_test.go",
         "framing_test.go",

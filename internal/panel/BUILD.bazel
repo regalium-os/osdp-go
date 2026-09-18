@@ -29,6 +29,7 @@ go_library(
 go_test(
     name = "panel_test",
     srcs = [
+        "collect_test.go",
         "device_test.go",
         "options_test.go",
         "panel_test.go",

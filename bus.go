@@ -121,6 +121,14 @@ const (
 	// starts from whatever the application's keyring says, and a device whose
 	// key nobody wrote down is a device nobody can talk to.
 	EventKeyInstalled = bus.KindKeyInstalled
+
+	// EventBusy means a device received a command and could not act on it yet.
+	//
+	// The command is not lost: it goes back on the queue and the next exchange
+	// is a poll, giving the device the moment it asked for without stopping
+	// the panel asking it questions. A device reporting this every cycle is
+	// one to go and look at, and Device.Queued says how far behind it is.
+	EventBusy = bus.KindBusy
 )
 
 // OfflineThreshold is how many consecutive unanswered polls mark a device

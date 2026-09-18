@@ -24,9 +24,10 @@ func TestSendReachesTheDevice(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	events := collect(p)
 	done := make(chan error, 1)
 	go func() { done <- p.Run(ctx) }()
-	waitFor(t, p.Events(), bus.KindOnline)
+	events.await(t, bus.KindOnline)
 
 	strike := cmd.OutputCommand(cmd.Output{
 		Number: 0, Control: cmd.OutputTimedOn, Timer: 5 * time.Second,
@@ -55,9 +56,10 @@ func TestCommandsAreDeliveredInOrder(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	events := collect(p)
 	done := make(chan error, 1)
 	go func() { done <- p.Run(ctx) }()
-	waitFor(t, p.Events(), bus.KindOnline)
+	events.await(t, bus.KindOnline)
 
 	for _, m := range []cmd.Message{
 		cmd.OutputCommand(cmd.Output{Number: 0, Control: cmd.OutputTimedOn, Timer: time.Second}),
@@ -105,9 +107,10 @@ func TestSendToAnAddressNotOnTheLine(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	events := collect(p)
 	done := make(chan error, 1)
 	go func() { done <- p.Run(ctx) }()
-	waitFor(t, p.Events(), bus.KindOnline)
+	events.await(t, bus.KindOnline)
 
 	err := p.Send(ctx, 0x7E, cmd.Message{Code: cmd.Poll})
 	if !errors.Is(err, panel.ErrUnknownDevice) {

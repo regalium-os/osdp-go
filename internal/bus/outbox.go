@@ -69,7 +69,7 @@ func (d *Device) withholdsKeySet() bool {
 }
 
 // delivered records that the device answered whatever was last sent to it, and
-// remembers which command that was.
+// keeps the command aside until the reply has been read.
 //
 // The code is kept because releasing the command and deciding what its
 // acknowledgement means happen at different points in handling a reply, and by
@@ -80,11 +80,26 @@ func (d *Device) withholdsKeySet() bool {
 // and declined it, which is an answer: retrying a command a device has already
 // rejected produces the same rejection forever.
 func (d *Device) delivered() {
-	d.acknowledged = cmd.Poll
+	d.acknowledged, d.released = cmd.Poll, nil
 	if d.inflight != nil {
-		d.acknowledged = d.inflight.Code
+		d.acknowledged, d.released = d.inflight.Code, d.inflight
 		d.inflight = nil
 	}
+}
+
+// reclaim puts a released command back on the queue.
+//
+// It exists for the one reply that completes an exchange without accepting the
+// command: osdp_BUSY. Whether a reply is an acceptance is not knowable until
+// the code has been read, and by then the command has already been let go --
+// so it is held aside rather than dropped, for exactly as long as it takes to
+// find out.
+func (d *Device) reclaim() {
+	if d.released == nil {
+		return
+	}
+	d.inflight, d.released = d.released, nil
+	d.requeue()
 }
 
 // retransmit puts an unanswered command back at the front of the queue and

@@ -83,6 +83,14 @@ type Device struct {
 	// more than one outstanding.
 	pending *secureStep
 
+	// deferCommands makes the next exchange a poll rather than whatever is
+	// queued, after a device has said it was busy. See onBusy.
+	deferCommands bool
+
+	// released is the command the reply being handled answered, held until the
+	// dispatch has decided whether it was accepted. See reclaim.
+	released *cmd.Message
+
 	// acknowledged is the code of the command the last reply answered. See
 	// delivered.
 	acknowledged cmd.Code

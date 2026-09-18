@@ -74,18 +74,23 @@ func (b *Bus) commandFor(d *Device) (cmd.Message, *frame.SecurityBlock) {
 		return b.handshakeCommand(d)
 
 	case Secure:
+		if d.deferring() {
+			block := blockForCommand(0)
+			return pollMessage(), &block
+		}
 		if d.withholdsKeySet() {
 			// Should not happen -- this state means the session is up -- but a
 			// key is not worth a "should".
-			return cmd.Message{Code: cmd.Poll}, nil
+			block := blockForCommand(0)
+			return pollMessage(), &block
 		}
 		m := d.outbound()
 		block := blockForCommand(len(m.Data))
 		return m, &block
 
 	default:
-		if d.withholdsKeySet() {
-			return cmd.Message{Code: cmd.Poll}, nil
+		if d.deferring() || d.withholdsKeySet() {
+			return pollMessage(), nil
 		}
 		return d.outbound(), nil
 	}

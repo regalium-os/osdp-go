@@ -167,6 +167,9 @@ func (b *Bus) dispatch(ctx context.Context, d *Device, msg cmd.Message) (Event, 
 		}
 		return b.event(ctx, Event{Kind: KindManufacturer, Device: d, Manufacturer: mfg}), nil
 
+	case cmd.Busy:
+		return b.onBusy(ctx, d)
+
 	case cmd.ACK:
 		// An acknowledgement means whatever was sent was accepted. Only one
 		// command changes what the bus must do next.

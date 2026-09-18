@@ -34,6 +34,28 @@ work — `Frame` carries `IsReply`, `cmd` encodes replies, and the Secure Channe
 implements the device role in full — but there is no device-side state machine
 to sequence them. See [Building a device](#building-a-device).
 
+## Try it without hardware
+
+```sh
+go run ./examples/panel -demo
+```
+
+That drives the whole stack against a simulated reader: enrolment, capability
+negotiation, card reads, the lot. When a real line is silent, this is how you
+find out whether the problem is the wiring or you.
+
+Against real hardware, through a serial-to-Ethernet converter:
+
+```sh
+go run ./examples/panel -addr converter:4001 -devices 0,1
+
+# and when something is wrong, every octet in both directions
+go run ./examples/panel -addr converter:4001 -devices 0 -trace
+```
+
+`-trace` is worth a look for a second reason: it is thirty lines wrapping
+`osdp.Port`, which is how a proprietary serial bridge would be added too.
+
 ## The thirty-second version
 
 ```go
@@ -86,6 +108,7 @@ for event := range panel.Events() {
     case osdp.EventOffline:       // missed enough polls to be presumed gone
     case osdp.EventSecure:        // a secure channel is up
     case osdp.EventSecureFailed:  // it could not be, or it was torn down
+    case osdp.EventBusy:          // the device asked to be given a moment
     }
 }
 ```
@@ -98,8 +121,12 @@ caller must fix.
 **Backpressure is a decision.** A full event buffer stops the poll cycle rather
 than dropping, because the event this library most often carries is a credential
 presented at a door, and quietly forgetting that somebody badged in is not a
-trade worth making. `WithEventBuffer` sizes the slack; a consumer that stops
-reading stalls the line.
+trade worth making. `WithEventBuffer` sizes the slack.
+
+The obligation that follows: **drain `Events()` for as long as `Run` is
+executing.** A stalled cycle stops accepting commands too, so a consumer that
+reads one event and stops, while another goroutine calls `Send`, deadlocks —
+each waiting on the other, until the context is cancelled.
 
 ### Watching a door
 
@@ -263,6 +290,9 @@ was written down at the time.
 
 ## What works
 
+Fuller detail, and everything still to do, is in [ROADMAP.md](ROADMAP.md) —
+including what has to exist *around* this library before a phone opens a door.
+
 | | Status |
 | --- | --- |
 | Framing — CRC-16 / checksum, mark octets, security blocks | complete; round trip fuzzed both ways |
@@ -273,9 +303,12 @@ was written down at the time.
 | Capability negotiation and vendor quirks | complete |
 | Transports — TCP, in-memory pipe | **no serial/RS-485 driver yet** |
 | `osdp_COMSET` — change baud rate or address | not implemented |
-| `osdp_BUSY` — a device asking you to retry | **read as success; known bug** |
+| `osdp_BUSY` — a device asking you to retry | complete; command retried, not lost |
+| `MaxMessageSize` — respect what a device says it can receive | **negotiated but never enforced** |
 | File transfer, biometrics, PIV | not implemented |
 | Peripheral-device (reader) runtime | not implemented |
+| Service layer — something for an app to call | not implemented; see [ROADMAP.md](ROADMAP.md) |
+| Persistence — keys and device state across a restart | not implemented |
 
 ### Building a device
 

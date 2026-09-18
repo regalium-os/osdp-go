@@ -75,15 +75,28 @@ func TestUnlockingADoorFromOutside(t *testing.T) {
 	log := &codeLog{}
 	go playReaderRecording(ctx, devicePort, log)
 
+	// Drain continuously. Breaking out of the range here and leaving the
+	// channel unread deadlocks the test: the runtime stops the poll cycle when
+	// the event buffer fills, a stalled cycle never accepts a queued command,
+	// and Send then waits on a run loop that is waiting on this goroutine.
+	// That is what the backpressure contract means, and CI found it the hard
+	// way -- a ten-minute hang in a test that had passed locally for days.
+	cards := make(chan struct{}, 1)
+	go func() {
+		for event := range runtime.Events() {
+			if event.Kind == osdp.EventCardRead {
+				select {
+				case cards <- struct{}{}:
+				default:
+				}
+			}
+		}
+	}()
+
 	done := make(chan error, 1)
 	go func() { done <- runtime.Run(ctx) }()
 
-	// Wait until the reader is enrolled, then grant access.
-	for event := range runtime.Events() {
-		if event.Kind == osdp.EventCardRead {
-			break
-		}
-	}
+	<-cards // the reader is enrolled and presenting credentials
 
 	strike, indicator := osdp.Unlock(0, 0, 0, 5*time.Second)
 	for _, command := range []osdp.Message{strike, indicator} {
