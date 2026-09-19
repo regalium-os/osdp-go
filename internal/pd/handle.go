@@ -36,6 +36,14 @@ import (
 // this; see internal/bus/sequence_test.go, which asserts that a retry repeats
 // the number rather than advancing it.
 //
+// The ordering matters more than it looks on an established Secure Channel. A
+// repeat is detected and replayed before the message authentication code is
+// consulted, and it has to be: this end already verified that command once and
+// advanced its command chain, so verifying the repeat would fail and tear down
+// a session that is working perfectly. Replaying the cached frame is also
+// correct for the other end, because a panel that never received the reply
+// never advanced its reply chain either.
+//
 // Sequence zero is not part of the rotation. The panel uses it to restart the
 // exchange -- after its own restart, or after losing track of a device -- and
 // the device answers at zero, forgets its cached reply, and begins again. A
@@ -49,9 +57,20 @@ import (
 // buffer; nothing here keeps a reference to it past the call, including the
 // cached reply, which is cloned.
 //
-// The returned frame owns its payload. It aliases neither command nor the
-// device's internal state, so a caller may hold it, encode it later, or hand it
-// to another goroutine.
+// The returned frame does not alias command, which is the guarantee a runtime
+// reusing one read buffer actually needs: the reply survives the next read.
+//
+// It does share storage with the reply cache, and deliberately. The cached
+// reply and the returned one are the same octets, because a retransmission must
+// reproduce them exactly; copying per exchange to guard against a caller that
+// writes into a frame it was handed would be the same wrong trade frame.Frame
+// declines to make on the decode path.
+//
+// So treat it as read-only. Encode it and let it go. Nothing in this package
+// writes into a frame it has already returned -- a later exchange replaces the
+// cache entry rather than modifying it -- so holding it, or reading it from
+// another goroutine, is safe; mutating it corrupts what the next retransmission
+// will send. Call Clone to get a copy that is yours.
 //
 // # Concurrency
 //
@@ -79,6 +98,7 @@ func (d *Device) Handle(ctx context.Context, command frame.Frame) (frame.Frame, 
 		Address:  int(d.address),
 		Sequence: int(seq),
 		Command:  cmd.Code(command.Code).Name(false),
+		Secure:   command.Security != nil,
 	}
 
 	switch {
@@ -91,7 +111,8 @@ func (d *Device) Handle(ctx context.Context, command frame.Frame) (frame.Frame, 
 		return d.cached, nil
 	}
 
-	reply, err := d.emit(ctx, command, seq, d.answerFor(ctx, command, seq))
+	m, block := d.answerFor(ctx, command, seq)
+	reply, err := d.emit(ctx, command, seq, m, block)
 	if err != nil {
 		span.RecordError(err)
 		return frame.Frame{}, err
@@ -144,17 +165,26 @@ func (d *Device) observe(now time.Time) {
 	d.seen, d.lastSeen = true, now
 }
 
-// answerFor picks the message a command deserves, sequence discipline included.
+// answerFor picks the message a command deserves, sequence discipline included,
+// and the security block it travels under.
 //
 // The strict check lives here rather than in Handle because a sequence error is
 // an answer like any other: it is emitted at the received sequence number, so
 // the panel can actually read it, and it is cached like any other reply, so
 // repeating the bad number repeats the NAK instead of producing a second one.
 //
+// A sequence error is refused in the clear even on an established session. The
+// frame that provoked it has not been authenticated -- it cannot be, because
+// checking the sequence is what happens before the message authentication code
+// is consulted -- so sealing a reply to it would advance the chain on the word
+// of something that may not be the panel at all.
+//
 // The lock must be held.
-func (d *Device) answerFor(ctx context.Context, f frame.Frame, seq uint8) cmd.Message {
+func (d *Device) answerFor(
+	ctx context.Context, f frame.Frame, seq uint8,
+) (cmd.Message, *frame.SecurityBlock) {
 	if d.cfg.strict && d.cachedValid && seq != nextSequence(d.cachedSeq) {
-		return nak(cmd.NAKSequenceError)
+		return nak(cmd.NAKSequenceError), nil
 	}
 	return d.answer(ctx, f)
 }

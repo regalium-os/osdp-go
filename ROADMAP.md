@@ -24,6 +24,7 @@ build if it regresses, not that somebody checked once.
 | `osdp_BUSY` — a device asking for a moment | **done** | command reclaimed, one-cycle backoff so polling continues |
 | `MaxMessageSize` — refuse what a device cannot receive | **done** | estimate pinned against real frames, secure overhead included |
 | `osdp_COMSET` — commission a device onto its own address | **done** | bus follows the device; duplicate addresses refused |
+| RS-485 serial transport | **done** | `DialSerial`; real deadlines, raw mode proven against a pty |
 | Secure Channel — handshake, authenticated + encrypted traffic | **done** | driven against a real `RolePD` session, not a mock |
 | Key install (`osdp_KEYSET`) — commission off SCBK-D | **done** | refuses to transmit without a channel, twice |
 | Commands — output, LED, buzzer, text, status requests | **done** | wire layouts asserted against the spec |
@@ -32,7 +33,7 @@ build if it regresses, not that somebody checked once.
 | Protobuf domain schema + FlatBuffers mirror + drift gate | **done** | three-way check: proto, ordinal ledger, mirror |
 | Conformance gates — layering, purity, file size, licence, cgo | **done** | `internal/arch`, fails loudly on an unreadable tree |
 | A runnable panel — demo mode, wire tracing, door release, commissioning | **done** | `examples/panel`; `-demo` needs no hardware |
-| Peripheral-device state machine with reply caching | **done** | `internal/pd`; plaintext only |
+| Peripheral-device state machine, reply cache, Secure Channel, runtime | **done** | `internal/pd`; driven against a real CP session |
 | `EventService` — Get, List, pagination, bounded store | **done** | `protobuf/service`; in-memory only |
 
 148 hand-written Go files, 60 test files, 4 fuzz targets, 3 fixture corpora,
@@ -53,7 +54,7 @@ forever, looking like a reader that answered polls and nothing else.
 
 | | Notes |
 | --- | --- |
-| **RS-485 serial driver** | Most readers are RS-485. A serial-to-Ethernet converter works **today** via `DialTCP` — that is the viable path without writing this. Doing it properly means termios ioctls by hand to keep the no-cgo rule, and belongs in a separate opt-in module. |
+| ~~RS-485 serial driver~~ | **done** — `DialSerial` on linux and darwin, pure standard library, no cgo and no new dependencies. Other platforms return a clear error rather than failing to build, and a converter over `DialTCP` still works everywhere. |
 | ~~`osdp_COMSET`~~ | **done** — moves a device's address and baud, follows the reply rather than the request, refuses a duplicate address. |
 | ~~A runnable example~~ | **done** — `examples/panel`, with `-demo` for no hardware, `-trace` for the octets, `-unlock` for the full loop. |
 
@@ -64,7 +65,7 @@ Deliberately unbuilt. Each is real work and none blocks a door opening.
 - **File transfer** (`osdp_FILETRANSFER`) and multi-part message reassembly — firmware updates over the bus.
 - **Biometrics** (`osdp_BIOREAD` / `osdp_BIOMATCH`).
 - **PIV / advanced auth** (`osdp_PIVDATA`, `GENAUTH`, `CRAUTH`) — federal deployments.
-- **Peripheral-device runtime** — **substantially done**: `internal/pd` implements the reader's state machine, including the reply cache §5.7 requires so a repeated sequence number replays rather than re-executes. Still to do: the Secure Channel path (a documented seam, not a stub) and wiring it to a port so it can answer a real line.
+- **Peripheral-device runtime** — **done**, including the Secure Channel: `internal/pd` implements the reader's state machine, the reply cache §5.7 requires, and the device half of the four-message handshake, driven in tests against a real `secure.Session` in `RoleCP` so a passing handshake is genuine interop rather than a function agreeing with itself. `pd.Server` drives a port, mirroring `panel` on the other side of the wire, so the device half is now complete end to end.
 
 ---
 
@@ -78,7 +79,7 @@ None of this is OSDP. All of it is between a working bus and a working product.
 | **Persistence** | The panel is entirely in-memory. Restart it and every device key, capability set and contact baseline is gone — and a device whose installed key was never written down is a device nobody can talk to. `EventKeyInstalled` exists precisely so an application can persist; nothing consumes it yet. |
 | **Credential decision logic** | This library reports that 26 bits arrived at reader 0. Whether that opens the door is the panel application's job: cardholder database, schedules, anti-passback, offline behaviour. |
 | **Audit storage** | `protobuf/record` converts events to domain records. Where they go is unbuilt. |
-| **Scale** | The poll cycle is tested with up to 3 devices. A real bus is dozens, and RS-485 timing at 9600 baud is the constraint nobody models until it bites. |
+| **Scale** | Now tested at 32 devices — starvation, per-device sequence independence, and per-device queues all hold. What the test also records is the constraint no software fixes: at 9600 baud an exchange costs 16.7ms, so a **126-device bus takes 2.1 seconds per pass** and a card presented just after its reader was polled waits that long to be reported. `osdp_COMSET` to a higher rate is the answer, which is why this library implements it. Untested above 32 and never against real timing jitter. |
 
 ---
 
@@ -146,4 +147,4 @@ In order, and each is independently useful:
    exist; `MemoryStore` loses everything on restart, which is not an audit
    trail. This is now the gap, rather than the service itself.
 4. **QR end to end** — the shortest honest path to "a phone opened a door".
-5. **A serial driver** — if a converter is not acceptable for the deployment.
+5. **A durable store** and the QR path — see §3 and §4.

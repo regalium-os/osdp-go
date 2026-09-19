@@ -44,9 +44,10 @@ That drives the whole stack against a simulated reader: enrolment, capability
 negotiation, card reads, the lot. When a real line is silent, this is how you
 find out whether the problem is the wiring or you.
 
-Against real hardware, through a serial-to-Ethernet converter:
+Against real hardware — a serial port directly, or a converter over TCP:
 
 ```sh
+go run ./examples/panel -serial /dev/ttyUSB0 -devices 0,1
 go run ./examples/panel -addr converter:4001 -devices 0,1
 
 # and when something is wrong, every octet in both directions
@@ -322,18 +323,36 @@ including what has to exist *around* this library before a phone opens a door.
 | Commands — output, LED, buzzer, text, status requests | complete |
 | Events — card, keypad, status, NAK, vendor, lifecycle | complete |
 | Capability negotiation and vendor quirks | complete |
-| Transports — TCP, in-memory pipe | **no serial/RS-485 driver yet** |
+| Transports — RS-485 serial (linux, darwin), TCP, in-memory pipe | complete |
 | `osdp_COMSET` — change baud rate or address | complete; refuses a duplicate address |
 | `osdp_BUSY` — a device asking you to retry | complete; command retried, not lost |
 | `MaxMessageSize` — respect what a device says it can receive | complete; oversized commands refused at the call site |
 | File transfer, biometrics, PIV | not implemented |
-| Peripheral-device (reader) runtime | `internal/pd` — plaintext state machine with reply caching; not yet wired to a port |
+| Peripheral-device (reader) runtime | `internal/pd` — state machine, reply cache, Secure Channel, and a `Server` that drives a port |
 | Service layer — something for an app to call | `EventService` + in-memory store in `protobuf/service`; no durable store |
 | Persistence — keys and device state across a restart | not implemented |
 
 ### Building a device
 
-There is no PD runtime, but nothing in the codec prevents one. `frame` encodes
+`internal/pd` is the reader's half: the state machine that waits to be polled,
+answers what it is asked, and never speaks first. It implements the reply cache
+SIA OSDP v2.2.2 §5.7 requires — a repeated sequence number replays the previous
+reply rather than re-executing the command, which is what stops a door
+unlocking twice when a reply is lost to noise — and the device side of the
+Secure Channel.
+
+`pd.Server` drives a port, mirroring `panel` on the other side of the wire:
+`New` starts nothing, `Run(ctx)` blocks, `Close` is idempotent. It runs on the
+caller's goroutine rather than starting one, because a device has no initiative
+to schedule — it answers or it does not.
+
+One behaviour is worth knowing before you rely on it. A panel that cannot parse
+a reply has a decision to make about the device; a peripheral has none, because
+it never asked for anything. So the server resynchronises past noise and stays
+silent on a frame it cannot read, and only a failing port ends `Run`. A reader
+that dropped off the bus over one corrupt frame would be a door that stops
+working for a reason invisible from the panel, which sees only a reader gone
+quiet. `frame` encodes
 and decodes both directions, `cmd` builds replies as readily as commands, and
 `secure` implements `RolePD` in full — the handshake tests drive a real device
 session against a real panel session. What is missing is the sequencing: reply

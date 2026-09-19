@@ -54,7 +54,7 @@ func run(cfg config) error {
 	}
 
 	line := osdp.Line{
-		Name:         cfg.addr,
+		Name:         cfg.lineName(),
 		Baud:         cfg.baud,
 		ReplyTimeout: cfg.timeout,
 
@@ -81,17 +81,26 @@ func run(cfg config) error {
 
 // openPort connects to the converter, or stands up a simulated reader.
 func openPort(ctx context.Context, cfg config) (osdp.Port, error) {
-	if cfg.demo {
+	switch {
+	case cfg.demo:
 		panelSide, deviceSide := osdp.Pipe()
 		go simulateReader(ctx, deviceSide, cfg)
 		return panelSide, nil
-	}
 
-	port, err := osdp.DialTCP(ctx, cfg.addr)
-	if err != nil {
-		return nil, fmt.Errorf("dialling %s: %w", cfg.addr, err)
+	case cfg.serial != "":
+		port, err := osdp.DialSerial(ctx, cfg.serial, osdp.WithBaud(cfg.baud))
+		if err != nil {
+			return nil, err
+		}
+		return port, nil
+
+	default:
+		port, err := osdp.DialTCP(ctx, cfg.addr)
+		if err != nil {
+			return nil, fmt.Errorf("dialling %s: %w", cfg.addr, err)
+		}
+		return port, nil
 	}
-	return port, nil
 }
 
 // secureOption builds the Secure Channel option, when a key was given.
@@ -110,8 +119,11 @@ func secureOption(cfg config) []osdp.BusOption {
 // events afterwards still says what it was trying.
 func announce(cfg config) {
 	where := cfg.addr
-	if cfg.demo {
+	switch {
+	case cfg.demo:
 		where = "a simulated reader (-demo)"
+	case cfg.serial != "":
+		where = fmt.Sprintf("%s at %d baud", cfg.serial, cfg.baud)
 	}
 
 	fmt.Printf("polling %s\n", where)

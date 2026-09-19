@@ -9,7 +9,14 @@ go_library(
         "conn.go",
         "doc.go",
         "pipe.go",
+        "serial.go",
+        "serial_port.go",
+        "serial_unix.go",
+        "serial_unsupported.go",
         "tcp.go",
+        "termios_darwin.go",
+        "termios_linux.go",
+        "termios_unix.go",
     ],
     importpath = "github.com/regalium-os/osdp-go/internal/driver",
     visibility = ["//:__subpackages__"],
@@ -26,7 +33,13 @@ filegroup(
 
 go_test(
     name = "driver_test",
-    srcs = ["driver_test.go"],
+    srcs = [
+        "driver_test.go",
+        "ptyname_darwin_test.go",
+        "ptyname_linux_test.go",
+        "serial_pty_test.go",
+        "serial_test.go",
+    ],
     deps = [
         ":driver",
         "//internal/frame",

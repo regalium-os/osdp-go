@@ -59,6 +59,7 @@ go_test(
         "peripheral_test.go",
         "retransmit_test.go",
         "rotation_test.go",
+        "scale_test.go",
         "secure_failure_test.go",
         "secure_policy_test.go",
         "secure_test.go",

@@ -48,6 +48,14 @@ func (d *Device) ReportCardRead(ctx context.Context, c cmd.CardRead) error {
 	span.SetAttribute(telemetry.AttrCardFormat, int(c.Format))
 	span.SetAttribute(telemetry.AttrCardBitCount, int(c.BitCount))
 
+	// The bit count is checked against the payload before anything is queued.
+	// It is the one inconsistency this package can see and the panel cannot
+	// recover from; see ErrShortCredential.
+	if need := (int(c.BitCount) + 7) / 8; len(c.Data) < need {
+		span.RecordError(ErrShortCredential)
+		return ErrShortCredential
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -144,6 +152,9 @@ func (d *Device) coalesce(m cmd.Message) error {
 // Wiegand credential, which is most of the installed base, occupies four octets
 // of which six bits are padding. A panel that counted octets would read six
 // bits of nothing as part of the card number.
+//
+// The two must still agree, and ReportCardRead has already established that
+// they do -- this function writes whatever it is handed.
 //
 // dst may be nil. c.Data is copied into dst and not retained.
 func appendCardRead(dst []byte, c cmd.CardRead) []byte {

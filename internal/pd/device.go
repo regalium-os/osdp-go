@@ -9,6 +9,7 @@ import (
 
 	"github.com/regalium-os/osdp-go/internal/cmd"
 	"github.com/regalium-os/osdp-go/internal/frame"
+	"github.com/regalium-os/osdp-go/internal/secure"
 )
 
 // Device is one peripheral device: a card reader, from the reader's own side.
@@ -51,6 +52,18 @@ type Device struct {
 	tamper       bool
 	powerFailure bool
 
+	// capabilities is state rather than configuration because osdp_KEYSET
+	// changes what the device may truthfully claim: a reader given a real key
+	// must stop advertising that it is running on the one printed in the
+	// specification.
+	capabilities cmd.CapabilityReport
+
+	// key is the Secure Channel base key, and session the channel derived from
+	// it. key is mutable because osdp_KEYSET replaces it; session is nil
+	// whenever there is no channel, which is most of the life of most readers.
+	key     secure.BaseKey
+	session *secure.Session
+
 	// pending holds events awaiting a poll, oldest first.
 	pending []cmd.Message
 
@@ -66,9 +79,13 @@ type Device struct {
 	cachedSeq   uint8
 	cachedValid bool
 
-	// adopting holds the address an osdp_COMSET asked for, applied after the
-	// reply has been built. See applyCommunication.
-	adopting *frame.Address
+	// adopting holds the address an osdp_COMSET asked for, and adoptingKey the
+	// base key an osdp_KEYSET carried. Both are applied after the reply
+	// confirming them has been built: the panel must be answered at the address
+	// it used, and the acknowledgement must be sealed with the session the
+	// panel still holds. See emit.
+	adopting    *frame.Address
+	adoptingKey *secure.BaseKey
 }
 
 // New returns a device answering to addr.
@@ -95,16 +112,34 @@ func New(addr frame.Address, opts ...Option) (*Device, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
-	if cfg.capabilities == nil {
-		cfg.capabilities = defaultCapabilities(cfg.inputs, cfg.outputs, cfg.readers)
-	}
-
-	return &Device{
+	d := &Device{
 		cfg:     cfg,
 		address: addr,
+		key:     cfg.key,
 		inputs:  make([]bool, cfg.inputs),
 		outputs: make([]bool, cfg.outputs),
-	}, nil
+	}
+	d.refreshCapabilities()
+	return d, nil
+}
+
+// refreshCapabilities rebuilds the osdp_PDCAP report the device answers with.
+//
+// A report supplied through WithCapabilities is taken verbatim and never
+// rebuilt: an application that said what its device can do is not second-guessed
+// afterwards, even about the key. A derived report is recomputed whenever the
+// key changes, because the default-key bit is part of it.
+//
+// The lock must be held, or the device must not yet be shared.
+func (d *Device) refreshCapabilities() {
+	if d.cfg.capabilities != nil {
+		d.capabilities = d.cfg.capabilities
+		return
+	}
+	d.capabilities = defaultCapabilities(
+		d.cfg.inputs, d.cfg.outputs, d.cfg.readers,
+		d.cfg.secure, d.cfg.secure && d.key.IsDefault(),
+	)
 }
 
 // Address returns the address the device currently answers to, which is not
@@ -123,7 +158,9 @@ func (d *Device) Identity() cmd.DeviceID { return d.cfg.identity }
 // The report is copied, so a caller cannot reach into the device's own answer
 // and change what it claims after the panel has already believed it.
 func (d *Device) Capabilities() cmd.CapabilityReport {
-	return append(cmd.CapabilityReport(nil), d.cfg.capabilities...)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append(cmd.CapabilityReport(nil), d.capabilities...)
 }
 
 // LastCommand returns when a command was last accepted from the panel, and

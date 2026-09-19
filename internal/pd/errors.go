@@ -57,6 +57,22 @@ var (
 // a card that was never presented.
 var ErrQueueFull = errors.New("osdp/pd: event queue is full")
 
+// ErrShortCredential reports a card read carrying fewer octets than its own bit
+// count requires.
+//
+// It is refused here rather than sent, because the specification does not let
+// the receiver recover from it: per SIA OSDP v2.2.2 §6.10 the bit count is
+// authoritative and is not implied by the payload length, so a panel handed
+// four octets of header claiming 26 bits over two octets of data has no reading
+// of the frame available to it. It discards the reply -- cmd.ParseCardRead is
+// the same code, and returns ErrShortPayload -- and the credential is gone with
+// no error raised at either end.
+//
+// A reader that genuinely has only part of a credential should report the bits
+// it has and a bit count to match, which is a short read rather than a
+// malformed one.
+var ErrShortCredential = errors.New("osdp/pd: credential is shorter than its bit count requires")
+
 // ErrNoSuchContact reports an input index the device was not configured with.
 // See WithContacts.
 var ErrNoSuchContact = errors.New("osdp/pd: no such contact on this device")

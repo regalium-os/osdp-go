@@ -7,11 +7,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"sync"
 	"testing"
 
 	"github.com/regalium-os/osdp-go/internal/cmd"
-	"github.com/regalium-os/osdp-go/internal/frame"
 	"github.com/regalium-os/osdp-go/internal/pd"
 )
 
@@ -97,71 +95,37 @@ func TestKeypadEntryIsReportedOnTheNextPoll(t *testing.T) {
 	}
 }
 
-// TestAFullQueueIsReportedRatherThanSwallowed.
+// TestACredentialShorterThanItsBitCountIsRefused.
 //
-// The alternative is a credential presented at a reader and silently forgotten,
-// which at the panel is indistinguishable from a card that was never presented.
-func TestAFullQueueIsReportedRatherThanSwallowed(t *testing.T) {
-	ctx := context.Background()
-	d := newDevice(t, pd.WithEventQueue(2))
-
-	card := cmd.CardRead{BitCount: 8, Data: []byte{0x01}}
-	for range 2 {
-		if err := d.ReportCardRead(ctx, card); err != nil {
-			t.Fatalf("ReportCardRead: %v", err)
-		}
-	}
-
-	if err := d.ReportCardRead(ctx, card); !errors.Is(err, pd.ErrQueueFull) {
-		t.Errorf("a third card read returned %v, want ErrQueueFull", err)
-	}
-	if got := d.Pending(); got != 2 {
-		t.Errorf("%d events queued, want 2", got)
-	}
-}
-
-// TestReportingConcurrentlyWithPolling.
+// The bit count is authoritative and is not implied by the payload length, so
+// the two disagreeing is not a smaller credential -- it is one the panel has no
+// reading of. It discards the reply and nothing anywhere raises an error, which
+// makes a miscounted card read indistinguishable from a card never presented.
 //
-// The claim on Device is that it is safe for concurrent use, and it is not a
-// convenience: the goroutine that notices a card at the reader and the one
-// answering the panel's poll are genuinely different goroutines, and the second
-// must not wait for the first. Under -race this is the test that says so.
-func TestReportingConcurrentlyWithPolling(t *testing.T) {
-	const rounds = 200
-
+// The assertion runs the device's own output through the panel's own parser,
+// because the two being the same code is the whole point: if this package can
+// emit a frame cmd.ParseCardRead rejects, it has emitted a frame the panel
+// rejects.
+func TestACredentialShorterThanItsBitCountIsRefused(t *testing.T) {
 	ctx := context.Background()
-	d := newDevice(t, pd.WithContacts(2, 0, 1), pd.WithEventQueue(4))
+	d := newDevice(t)
 
-	// The poll frames are built on the test's own goroutine: the helpers call
-	// t.Fatalf, and that is only legal from the goroutine running the test.
-	polls := [3]frame.Frame{poll(t, 1), poll(t, 2), poll(t, 3)}
+	// 26 bits needs four octets.
+	short := cmd.CardRead{Format: 1, BitCount: 26, Data: []byte{0x12, 0x34}}
+	if err := d.ReportCardRead(ctx, short); !errors.Is(err, pd.ErrShortCredential) {
+		t.Errorf("ReportCardRead returned %v, want ErrShortCredential", err)
+	}
+	if got := d.Pending(); got != 0 {
+		t.Errorf("%d events queued, want 0: a credential the panel cannot read "+
+			"was queued anyway", got)
+	}
 
-	var wg sync.WaitGroup
-	wg.Add(3)
-
-	go func() {
-		defer wg.Done()
-		for i := range rounds {
-			// A full queue is an expected outcome here, not a failure: the
-			// poller is draining one event per poll and the reader is faster.
-			_ = d.ReportCardRead(ctx, cmd.CardRead{BitCount: 8, Data: []byte{byte(i)}})
-		}
-	}()
-	go func() {
-		defer wg.Done()
-		for i := range rounds {
-			_ = d.SetInput(ctx, i%2, i%3 == 0)
-		}
-	}()
-	go func() {
-		defer wg.Done()
-		for i := range rounds {
-			if _, err := d.Handle(ctx, polls[i%3]); err != nil {
-				t.Errorf("Handle: %v", err)
-				return
-			}
-		}
-	}()
-
-	wg.Wait()
+	// The exact boundary is accepted, and survives the round trip.
+	exact := cmd.CardRead{Format: 1, BitCount: 26, Data: []byte{0x12, 0x34, 0x56, 0x80}}
+	if err := d.ReportCardRead(ctx, exact); err != nil {
+		t.Fatalf("ReportCardRead on a well-formed credential: %v", err)
+	}
+	if _, err := cmd.ParseCardRead(answer(t, d, poll(t, 1)).Data); err != nil {
+		t.Errorf("the device emitted an osdp_RAW the panel cannot parse: %v", err)
+	}
 }

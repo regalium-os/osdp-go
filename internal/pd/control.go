@@ -39,29 +39,69 @@ func (d *Device) applyOutputs(data []byte) cmd.Message {
 		return nak(cmd.NAKCommandLength)
 	}
 
-	// Validate every entry before applying any. A command naming an output
-	// this device does not have is refused whole, because half-applying it
-	// would leave the panel acknowledged for work that was not done.
+	// Every entry is checked before any is applied, and both ways an entry can
+	// be wrong are checked here rather than one here and one in the loop below.
+	// A command refused halfway is the worst outcome available: the strike is
+	// energised, the panel is told the command failed, and it will not send the
+	// off command for a door it believes never opened.
 	for i := 0; i < len(data); i += outputEntrySize {
 		if int(data[i]) >= len(d.outputs) {
+			return nak(cmd.NAKUnsupportedInput)
+		}
+		if outputActionFor(cmd.OutputControl(data[i+1])) == outputUnknown {
 			return nak(cmd.NAKUnsupportedInput)
 		}
 	}
 
 	for i := 0; i < len(data); i += outputEntrySize {
-		switch cmd.OutputControl(data[i+1]) {
-		case cmd.OutputOffAbort, cmd.OutputOffAfterTimer, cmd.OutputTimedOff:
+		switch outputActionFor(cmd.OutputControl(data[i+1])) {
+		case outputDeenergise:
 			d.outputs[data[i]] = false
-		case cmd.OutputOnAbort, cmd.OutputOnAfterTimer, cmd.OutputTimedOn:
+		case outputEnergise:
 			d.outputs[data[i]] = true
-		case cmd.OutputNOP:
-			// Explicitly nothing: the zero value exists so an unconfigured
-			// entry in a multi-output command changes nothing.
-		default:
-			return nak(cmd.NAKUnsupportedInput)
+		case outputLeave, outputUnknown:
+			// osdp_OUT_NOP, which the validation pass above has already
+			// separated from a code nobody defined.
 		}
 	}
 	return ack()
+}
+
+// outputAction is what one osdp_OUT entry does to its output point, reduced to
+// the three outcomes this device can represent.
+type outputAction uint8
+
+const (
+	// outputUnknown is a control code the specification does not define. It is
+	// deliberately the zero value: a lookup that fell through returns the
+	// answer that refuses the command rather than the one that ignores it.
+	outputUnknown outputAction = iota
+	outputLeave
+	outputDeenergise
+	outputEnergise
+)
+
+// outputActionFor maps a control code to its outcome.
+//
+// It exists so that deciding whether an entry is valid and deciding what it
+// does are the same decision, made once. They were two, and the validity half
+// ran a loop later than the effect half -- which is exactly how a command comes
+// to be half-applied and then refused.
+//
+// The permanent state is all that is recorded. The abort-versus-let-the-timer-
+// finish distinction needs a running timer to be observable, and a device with
+// no loop has nowhere to run one; see applyOutputs.
+func outputActionFor(c cmd.OutputControl) outputAction {
+	switch c {
+	case cmd.OutputNOP:
+		return outputLeave
+	case cmd.OutputOffAbort, cmd.OutputOffAfterTimer, cmd.OutputTimedOff:
+		return outputDeenergise
+	case cmd.OutputOnAbort, cmd.OutputOnAfterTimer, cmd.OutputTimedOn:
+		return outputEnergise
+	default:
+		return outputUnknown
+	}
 }
 
 // applyCommunication executes osdp_COMSET and confirms it with osdp_COM.

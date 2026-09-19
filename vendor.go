@@ -145,6 +145,43 @@ func DialTCP(ctx context.Context, address string) (Port, error) {
 	return driver.DialTCP(ctx, address)
 }
 
+// SerialOption configures a serial port at open time.
+type SerialOption = driver.SerialOption
+
+// SerialBaudRates are the line speeds SIA OSDP v2.2.2 defines. A device is
+// required to support 9600 and negotiates upward with osdp_COMSET.
+var SerialBaudRates = driver.SerialBaudRates
+
+// DialSerial opens an RS-485 or RS-232 port directly, without a converter.
+//
+//	port, err := osdp.DialSerial(ctx, "/dev/ttyUSB0", osdp.WithBaud(9600))
+//
+// Supported on linux and darwin. Other platforms return ErrSerialUnsupported
+// rather than failing to build, so one binary still targets every platform this
+// library supports and can reach a line through DialTCP instead.
+//
+// The port is raw 8N1 with no flow control -- OSDP is binary on a shared wire,
+// and a tty layer that translated a carriage return would corrupt frames in
+// ways that look like line noise.
+func DialSerial(ctx context.Context, device string, opts ...SerialOption) (Port, error) {
+	return driver.DialSerial(ctx, device, opts...)
+}
+
+// WithBaud sets the line speed. The default is 9600, the only rate every OSDP
+// device is required to support.
+func WithBaud(baud int) SerialOption { return driver.WithBaud(baud) }
+
+// Serial errors, matched with errors.Is.
+var (
+	// ErrUnsupportedBaud means a line speed OSDP does not define. Both ends
+	// have to agree and a device only speaks the standard rates, so a typo
+	// here produces a line that carries nothing.
+	ErrUnsupportedBaud = driver.ErrUnsupportedBaud
+
+	// ErrSerialUnsupported means this platform has no serial implementation.
+	ErrSerialUnsupported = driver.ErrSerialUnsupported
+)
+
 // Pipe returns two Ports connected in memory: a panel and a device, for running
 // the whole stack end to end without hardware.
 func Pipe() (panel, device Port) { return driver.Pipe() }

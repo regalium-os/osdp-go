@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/regalium-os/osdp-go/internal/cmd"
+	"github.com/regalium-os/osdp-go/internal/secure"
 )
 
 // defaultEventQueue is how many unreported events a device holds.
@@ -32,6 +33,15 @@ type settings struct {
 	configAddr   bool
 	strict       bool
 	handler      Handler
+
+	// The Secure Channel configuration. secure is the single flag the rest of
+	// the package tests, so a half-supplied channel -- a suite with no source
+	// of randomness -- is impossible to represent rather than merely unlikely.
+	secure       bool
+	suite        secure.CipherSuite
+	key          secure.BaseKey
+	nonce        NonceSource
+	keyInstalled KeyInstalled
 }
 
 // defaults are what New uses when no option says otherwise: a plain reader with

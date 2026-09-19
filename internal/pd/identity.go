@@ -54,12 +54,13 @@ func appendDeviceID(dst []byte, id cmd.DeviceID) []byte {
 // a panel told there are four inputs and then handed two octets of osdp_ISTATR
 // has no way to decide which of the two to believe, and both are this device.
 //
-// osdp_CAP_COMMUNICATION_SECURITY is reported at compliance zero deliberately.
-// This package does not implement the device half of the Secure Channel, and a
-// device that claimed AES-128 would be challenged and would have to NAK the
-// challenge -- which at the panel reads as a reader that is broken rather than
-// one that is merely plain. See the package documentation for the seam.
-func defaultCapabilities(inputs, outputs, readers int) cmd.CapabilityReport {
+// osdp_CAP_COMMUNICATION_SECURITY answers two different questions in its two
+// octets, and both are read from the device's actual configuration rather than
+// asserted. A device with no key reports compliance zero, so a panel never
+// offers a channel that would have to be refused; a device holding SCBK-D
+// reports the default-key bit, so a panel can tell an installable reader from a
+// secure one and say so rather than treating the channel as trustworthy.
+func defaultCapabilities(inputs, outputs, readers int, aes, defaultKey bool) cmd.CapabilityReport {
 	return cmd.CapabilityReport{
 		{Function: cmd.FuncContactStatus, Compliance: 0x01, Items: byte(inputs)},
 		{Function: cmd.FuncOutputControl, Compliance: 0x01, Items: byte(outputs)},
@@ -73,7 +74,11 @@ func defaultCapabilities(inputs, outputs, readers int) cmd.CapabilityReport {
 		// far less on a line shared with a motor.
 		{Function: cmd.FuncCheckCharacter, Compliance: 0x01, Items: 0x00},
 
-		{Function: cmd.FuncCommSecurity, Compliance: 0x00, Items: 0x00},
+		{
+			Function:   cmd.FuncCommSecurity,
+			Compliance: flag(aes, cmd.SecurityAES128),
+			Items:      flag(defaultKey, cmd.SecurityDefaultKey),
+		},
 
 		// The receive buffer entry is the one whose compliance octet is not a
 		// compliance level: the pair is a little-endian octet count, least
@@ -87,4 +92,14 @@ func defaultCapabilities(inputs, outputs, readers int) cmd.CapabilityReport {
 		{Function: cmd.FuncReaders, Compliance: 0x01, Items: byte(readers)},
 		{Function: cmd.FuncOSDPVersion, Compliance: osdpVersion, Items: 0x00},
 	}
+}
+
+// flag returns bit when set, and zero otherwise. It exists so the capability
+// entries above read as the two questions they answer rather than as four lines
+// of branching.
+func flag(set bool, bit byte) byte {
+	if set {
+		return bit
+	}
+	return 0
 }

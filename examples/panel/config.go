@@ -20,6 +20,7 @@ import (
 // config is what the flags produced.
 type config struct {
 	addr       string
+	serial     string
 	devices    []osdp.Address
 	baud       int
 	timeout    time.Duration
@@ -36,6 +37,7 @@ type config struct {
 func parseFlags() config {
 	var (
 		addr       = flag.String("addr", "", "TCP address of a serial converter, e.g. converter:4001")
+		serial     = flag.String("serial", "", "serial device, e.g. /dev/ttyUSB0 or /dev/tty.usbserial-A1")
 		devices    = flag.String("devices", "0", "comma-separated device addresses to poll")
 		baud       = flag.Int("baud", 9600, "line speed, for the trace only")
 		timeout    = flag.Duration("timeout", 200*time.Millisecond, "how long a device has to answer")
@@ -53,14 +55,21 @@ func parseFlags() config {
 	)
 	flag.Parse()
 
-	if *addr == "" && !*demo {
-		fmt.Fprintln(os.Stderr, "panel: give -addr, or -demo to run without hardware")
+	if *addr == "" && *serial == "" && !*demo {
+		fmt.Fprintln(os.Stderr,
+			"panel: give -serial for a serial port, -addr for a converter,\n"+
+				"  or -demo to run without hardware")
 		flag.Usage()
+		os.Exit(2)
+	}
+	if *addr != "" && *serial != "" {
+		fmt.Fprintln(os.Stderr, "panel: -serial and -addr are two ways to reach one line; give one")
 		os.Exit(2)
 	}
 
 	cfg := config{
 		addr:       *addr,
+		serial:     *serial,
 		devices:    parseAddresses(*devices),
 		baud:       *baud,
 		timeout:    *timeout,
@@ -113,4 +122,16 @@ func parseAddresses(list string) []osdp.Address {
 		out = append(out, osdp.Address(n))
 	}
 	return out
+}
+
+// lineName identifies the line in traces: whichever way it was reached.
+func (c config) lineName() string {
+	switch {
+	case c.serial != "":
+		return c.serial
+	case c.addr != "":
+		return c.addr
+	default:
+		return "demo"
+	}
 }

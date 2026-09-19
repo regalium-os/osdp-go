@@ -58,14 +58,25 @@ func commandTo(t *testing.T, addr frame.Address, seq uint8, m cmd.Message) frame
 		t.Fatalf("encoding %s: %v", m.Name(), err)
 	}
 
+	return throughWire(t, f)
+}
+
+// throughWire encodes a frame and decodes it back, so what a test hands to the
+// device is a frame that survived the line rather than one this process still
+// owns. The payload of the result aliases a read buffer, which is the condition
+// the ownership rules are written for.
+func throughWire(t *testing.T, f frame.Frame) frame.Frame {
+	t.Helper()
+
+	ctx := context.Background()
 	buf, err := f.Append(ctx, nil)
 	if err != nil {
-		t.Fatalf("appending %s: %v", m.Name(), err)
+		t.Fatalf("appending a frame: %v", err)
 	}
 
 	decoded, err := frame.Decode(ctx, buf)
 	if err != nil {
-		t.Fatalf("decoding %s: %v", m.Name(), err)
+		t.Fatalf("decoding a frame: %v", err)
 	}
 	return decoded
 }

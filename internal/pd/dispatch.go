@@ -10,34 +10,57 @@ import (
 	"github.com/regalium-os/osdp-go/internal/frame"
 )
 
-// answer returns the message this command deserves.
+// answer returns the message this command deserves and the security block it
+// travels under, nil for plaintext.
 //
 // It never fails. A peripheral device that has been addressed owes the panel a
 // reply, and every way this can go wrong has a reply of its own: osdp_NAK with
 // a reason from SIA OSDP v2.2.2 §6.3. Returning an error instead would leave
 // the runtime holding a command it could neither answer nor ignore.
 //
-// f.Data is read and not retained by anything here. The payloads built below
-// are freshly allocated.
+// f.Data is read and not retained. The payloads built below are freshly
+// allocated.
 //
 // The lock must be held.
-func (d *Device) answer(ctx context.Context, f frame.Frame) cmd.Message {
-	// A security block means the panel is speaking Secure Channel. This
-	// package implements the plaintext state machine only, so the honest
-	// answer is that encryption is not supported -- which is also what the
-	// capability report said, so the panel is not being contradicted. See the
-	// package documentation for where the device half of the handshake goes.
+func (d *Device) answer(ctx context.Context, f frame.Frame) (cmd.Message, *frame.SecurityBlock) {
 	if f.Security != nil {
-		return nak(cmd.NAKEncryptionUnsup)
+		return d.answerSecure(ctx, f)
 	}
 
+	// Plaintext arriving on an established session. Per SIA OSDP v2.2.2 §7.4
+	// this must not be answered as though the channel were never there: the
+	// reply to a poll can be a credential, and handing one back in the clear
+	// because somebody injected an unauthenticated frame is precisely the
+	// downgrade the channel exists to prevent.
+	//
+	// So it is refused once, and the session is torn down with it. That second
+	// half is what stops the refusal becoming a wedge: the panel has evidently
+	// abandoned the channel -- it restarted, or its own session failed -- and
+	// from the next command on this device is an ordinary plaintext reader
+	// again, free to be challenged afresh whenever the panel is ready.
+	if d.session != nil && d.session.Established() {
+		d.dropSession()
+		return nak(cmd.NAKSecureRequired), nil
+	}
+
+	return d.dispatch(ctx, f, false), nil
+}
+
+// dispatch is the command table, over a payload already in the clear.
+//
+// secured says whether the command arrived inside an established session. Only
+// osdp_KEYSET consults it, because it is the only command whose meaning depends
+// on how it travelled rather than on what it says.
+//
+// The lock must be held.
+func (d *Device) dispatch(ctx context.Context, f frame.Frame, secured bool) cmd.Message {
 	switch cmd.Code(f.Code) {
 	case cmd.Poll:
 		return d.pollReply()
 	case cmd.ID:
 		return cmd.Message{Code: cmd.PDID, Data: appendDeviceID(nil, d.cfg.identity)}
 	case cmd.Cap:
-		return cmd.Message{Code: cmd.PDCap, Data: d.cfg.capabilities.Append(nil)}
+		return cmd.Message{Code: cmd.PDCap, Data: d.capabilities.Append(nil)}
 	case cmd.LStat:
 		return d.localStatus()
 	case cmd.IStat:
@@ -60,19 +83,27 @@ func (d *Device) answer(ctx context.Context, f frame.Frame) cmd.Message {
 	case cmd.LED, cmd.Buz, cmd.Text, cmd.KeepActive, cmd.Abort, cmd.ACURxSize:
 		return ack()
 
-	// The Secure Channel commands, answered rather than ignored so that a
-	// panel offering a channel learns immediately that it will not get one.
+	// A handshake command with no security block around it. A device that can
+	// speak Secure Channel says so -- put it in a block; one that cannot says
+	// that instead.
 	case cmd.Chlng, cmd.SCrypt:
+		if d.secureEnabled() {
+			return nak(cmd.NAKSecureRequired)
+		}
 		return nak(cmd.NAKEncryptionUnsup)
 
-	// osdp_KEYSET is refused with "secure channel required" and not with
-	// "encryption not supported", because the two are different facts and the
-	// panel acts on them differently. This device could store a key; what it
-	// will not do is accept one that arrived in the clear, where anyone with a
-	// pair of probes and a cupboard door now has it too. Per SIA OSDP v2.2.2
-	// §6.16 a key install belongs inside an established session.
+	// osdp_KEYSET is the one command that must never be obeyed in the clear.
+	// The payload is the base key: a panel that sent it unencrypted has handed
+	// the site key to anyone with a pair of probes and a cupboard door, and
+	// nothing afterwards takes it back. Per SIA OSDP v2.2.2 §6.16 a key install
+	// belongs inside an established session, and reason 0x05 says exactly that
+	// -- which is a different fact from "I cannot encrypt", and a panel acts on
+	// the two differently.
 	case cmd.KeySet:
-		return nak(cmd.NAKSecureRequired)
+		if !secured {
+			return nak(cmd.NAKSecureRequired)
+		}
+		return d.installKey(f.Data)
 	}
 
 	return d.delegate(ctx, f)
